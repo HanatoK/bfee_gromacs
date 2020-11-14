@@ -6,7 +6,7 @@ colvar {
     name RMSD
     rmsd {
         atoms {
-            indexGroup $ligand_selection
+            indexGroup BFEE_Ligand
         }
         refPositionsfile reference.xyz
     }
@@ -15,20 +15,20 @@ colvar {
 colvar {
     name                    eulerTheta
     scriptedFunction        eulerTheta 
-    width                   $eulerTheta_width
-    lowerboundary           $eulerTheta_lower_boundary
-    upperboundary           $eulerTheta_upper_boundary
+    width                   0.005
+    lowerboundary           -10.0
+    upperboundary           10.0
     subtractAppliedForce    on
     extendedLagrangian      on
-    extendedFluctuation     $eulerTheta_width
+    extendedFluctuation     0.005
     Orientation {
         atoms {
-            indexGroup          $ligand_selection
+            indexGroup          BFEE_Ligand
             centerReference     on
             rotateReference     on
             enableFitGradients  off
             fittingGroup {
-                indexGroup $protein_selection
+                indexGroup BFEE_Protein
             }   
             refPositionsfile reference.xyz
         }   
@@ -39,10 +39,10 @@ colvar {
 
 harmonicWalls {
     colvars             eulerTheta
-    lowerWalls          $eulerTheta_lower_boundary
-    upperWalls          $eulerTheta_upper_boundary
-    lowerWallConstant   $eulerTheta_wall_constant
-    upperWallConstant   $eulerTheta_wall_constant
+    lowerWalls          -10.0
+    upperWalls          10.0
+    lowerWallConstant   0.8368
+    upperWallConstant   0.8368
 }
 
 
@@ -63,17 +63,17 @@ metadynamics {
 harmonic {
     colvars         RMSD
     forceConstant   41.84
-    centers         001_pmf_argmin
+    centers         1.2500000
 }
 
 colvar {
     name translation
     distance {
         group1 {
-            indexGroup $protein_selection
+            indexGroup BFEE_Protein
         }
         group2 {
-            dummyAtom $protein_center
+            dummyAtom (-2.7536400011740625e-05, 4.758456998388283e-05, -3.369705154909752e-05)
         }
     }
 }
@@ -88,7 +88,7 @@ colvar {
     name orientation
     orientation {
         atoms {
-            indexGroup $protein_selection
+            indexGroup BFEE_Protein
         }
         refPositionsfile reference.xyz
     }

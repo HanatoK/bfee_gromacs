@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
 import numpy as np
 import os
+import sys
 import string
+import logging
+import shutil
 from MDAnalysis import Universe
 from MDAnalysis.units import convert
 from math import isclose
+
 
 def measure_minmax(atom_positions):
     """
@@ -53,7 +57,7 @@ def merge_files(filename_list, output_filename):
                 for line in finput:
                     foutput.write(line)
 
-def generateMDP(MDPTemplateFile, outputPrefix, timeStep, numSteps, temperature, pressure):
+def generateMDP(MDPTemplateFile, outputPrefix, timeStep, numSteps, temperature, pressure, logger=None):
     """
     Parameters
     ----------
@@ -69,11 +73,18 @@ def generateMDP(MDPTemplateFile, outputPrefix, timeStep, numSteps, temperature, 
     numSteps : int
         number of steps for running the simulation
     """
-    print(f'generateMDP: Generating {outputPrefix + ".mdp"} from template {MDPTemplateFile}...')
-    print(f'Timestep (dt): {timeStep}')
-    print(f'Number of simulation steps (nsteps): {numSteps}')
-    print(f'Temperature: {temperature}')
-    print(f'Pressure: {pressure}')
+    if logger is None:
+        print(f'generateMDP: Generating {outputPrefix + ".mdp"} from template {MDPTemplateFile}...')
+        print(f'Timestep (dt): {timeStep}')
+        print(f'Number of simulation steps (nsteps): {numSteps}')
+        print(f'Temperature: {temperature}')
+        print(f'Pressure: {pressure}')
+    else:
+        logger.info(f'generateMDP: Generating {outputPrefix + ".mdp"} from template {MDPTemplateFile}...')
+        logger.info(f'Timestep (dt): {timeStep}')
+        logger.info(f'Number of simulation steps (nsteps): {numSteps}')
+        logger.info(f'Temperature: {temperature}')
+        logger.info(f'Pressure: {pressure}')
     with open(MDPTemplateFile, 'r') as finput:
         MDP_content = string.Template(finput.read())
     MDP_content = MDP_content.safe_substitute(dt=timeStep,
@@ -83,19 +94,29 @@ def generateMDP(MDPTemplateFile, outputPrefix, timeStep, numSteps, temperature, 
     with open(outputPrefix + '.mdp', 'w') as foutput:
         foutput.write(MDP_content)
 
-def generateColvars(colvarsTemplate, outputPrefix, **kwargs):
-    print(f'generateColvars: Generating {outputPrefix + ".dat"} from template {colvarsTemplate}...')
-    print('Colvars parameters:')
+def generateColvars(colvarsTemplate, outputPrefix, logger=None, **kwargs):
+    if logger is None:
+        print(f'generateColvars: Generating {outputPrefix + ".dat"} from template {colvarsTemplate}...')
+        print('Colvars parameters:')
+    else:
+        logger.info(f'generateColvars: Generating {outputPrefix + ".dat"} from template {colvarsTemplate}...')
+        logger.info('Colvars parameters:')
     for key, val in kwargs.items():
-        print(f'{key} = {val}')
+        if logger is None:
+            print(f'{key} = {val}')
+        else:
+            logger.info(f'{key} = {val}')
     with open(colvarsTemplate, 'r') as finput:
         content = string.Template(finput.read())
     content = content.safe_substitute(**kwargs)
     with open(outputPrefix + '.dat', 'w') as foutput:
         foutput.write(content)
 
-def generateShellScript(shellTemplate, outputPrefix, **kwargs):
-    print(f'generateShellScript: Generating {outputPrefix + ".sh"} from template {shellTemplate}...')
+def generateShellScript(shellTemplate, outputPrefix, logger=None, **kwargs):
+    if logger is None:
+        print(f'generateShellScript: Generating {outputPrefix + ".sh"} from template {shellTemplate}...')
+    else:
+        logger.info(f'generateShellScript: Generating {outputPrefix + ".sh"} from template {shellTemplate}...')
     with open(shellTemplate, 'r') as finput:
         content = string.Template(finput.read())
     content = content.safe_substitute(**kwargs)
@@ -124,27 +145,40 @@ class BFEEGromacs:
 
     """
     def __init__(self, structureFile, topologyFile):
-        print('Initializing BFEEGromacs...')
+        self.logger = logging.getLogger()
+        self.handler = logging.StreamHandler(sys.stdout)
+        self.handler.setFormatter(logging.Formatter('%(asctime)s [BFEEGromacs][%(levelname)s]:%(message)s'))
+        self.logger.addHandler(self.handler)
+        self.logger.setLevel(logging.INFO)
+        self.logger.info('Initializing BFEEGromacs...')
         self.structureFile = structureFile
         self.topologyFile = topologyFile
-        print(f'Calling MDAnalysis to load structure {self.structureFile}.')
+        self.logger.info(f'Calling MDAnalysis to load structure {self.structureFile}.')
         self.system = Universe(self.structureFile)
         dim = self.system.dimensions
         volume = dim[0] * dim[1] * dim[2]
-        print(f'The volume of the simulation box is {volume} Å^3.')
+        self.logger.info(f'The volume of the simulation box is {volume} Å^3.')
         if isclose(volume, 0.0):
-            print(f'The volume is too small. Maybe the structure file is a PDB file without the unit cell.')
+            self.logger.warning(f'The volume is too small. Maybe the structure file is a PDB file without the unit cell.')
             all_atoms = self.system.select_atoms("all")
             self.system.trajectory[0].triclinic_dimensions = get_cell(all_atoms.positions)
             dim = self.system.dimensions
-            print(f'The unit cell has been reset to {dim[0]:12.5f} {dim[1]:12.5f} {dim[2]:12.5f} .')
+            self.logger.warning(f'The unit cell has been reset to {dim[0]:12.5f} {dim[1]:12.5f} {dim[2]:12.5f} .')
             newBasename = os.path.splitext(self.structureFile)[0]
             self.structureFile = newBasename + '.new.gro'
             self.saveStructure(self.structureFile)
-        print('Initialization done.')
+        self.basenames = ['001_RMSD_bound',
+                          '002_euler_theta',
+                          '003_euler_phi',
+                          '004_euler_psi',
+                          '005_polar_theta',
+                          '006_polar_phi',
+                          '007_r',
+                          '008_RMSD_unbound']
+        self.logger.info('Initialization done.')
 
     def saveStructure(self, outputFile, selection='all'):
-        print(f'Saving a new structure file at {outputFile} with selection ({selection}).')
+        self.logger.info(f'Saving a new structure file at {outputFile} with selection ({selection}).')
         selected_atoms = self.system.select_atoms(selection)
         selected_atoms.write(outputFile)
 
@@ -155,7 +189,7 @@ class BFEEGromacs:
         selection : str
             MDAnalysis atom selection string
         """
-        print(f'Setup the atoms group of the protein by selection: {selection}')
+        self.logger.info(f'Setup the atoms group of the protein by selection: {selection}')
         self.protein = self.system.select_atoms(selection)
     
     def setLigandAtomsGroup(self, selection):
@@ -165,7 +199,7 @@ class BFEEGromacs:
         selection : str
             MDAnalysis atom selection string
         """
-        print(f'Setup the atoms group of the ligand by selection: {selection}')
+        self.logger.info(f'Setup the atoms group of the ligand by selection: {selection}')
         self.ligand = self.system.select_atoms(selection)
 
     def setSolventAtomsGroup(self, selection):
@@ -175,7 +209,7 @@ class BFEEGromacs:
         selection : str
             MDAnalysis atom selection string
         """
-        print(f'Setup the atoms group of the solvent molecule by selection: {selection}')
+        self.logger.info(f'Setup the atoms group of the solvent molecule by selection: {selection}')
         self.solvent = self.system.select_atoms(selection)
 
     def generateGromacsIndex(self, outputFile):
@@ -188,14 +222,16 @@ class BFEEGromacs:
             self.solvent.write(outputFile, name='BFEE_Solvent', mode='a')
 
     def generate001(self):
-        generate_basename = '001_RMSD_bound'
-        print(f'Generating simulation files for {generate_basename}...')
-        if not os.path.exists(f'{generate_basename}/'):
-            print(f'Making directory {generate_basename}/...')
-            os.makedirs(f'{generate_basename}')
+        generate_basename = self.basenames[0]
+        self.logger.info('=' * 80)
+        self.logger.info(f'Generating simulation files for {generate_basename}...')
+        if not os.path.exists(generate_basename):
+            self.logger.info(f'Making directory {os.path.abspath(generate_basename)}...')
+            os.makedirs(generate_basename)
         # generate the MDP file
         generateMDP('001.mdp.template',
-                    f'{generate_basename}/001_PMF',
+                    os.path.join(generate_basename, '001_PMF'),
+                    logger=self.logger,
                     timeStep=0.002,
                     numSteps=4000000,
                     temperature=300,
@@ -210,11 +246,11 @@ class BFEEGromacs:
         # convert angstrom to nanometer and format the string
         protein_center = convert(protein_center, "angstrom", "nm")
         protein_center_str = f'({protein_center[0]}, {protein_center[1]}, {protein_center[2]})'
-        print('COM of the protein: ' + protein_center_str + '.')
+        self.logger.info('COM of the protein: ' + protein_center_str + '.')
         # generate the index file
-        self.generateGromacsIndex(f'{generate_basename}/colvars.ndx')
+        self.generateGromacsIndex(os.path.join(generate_basename, 'colvars.ndx'))
         # generate the colvars configuration
-        colvars_inputfile_basename = f'{generate_basename}/001_colvars'
+        colvars_inputfile_basename = os.path.join(generate_basename, '001_colvars')
         generateColvars('001.colvars.template',
                         colvars_inputfile_basename,
                         rmsd_bin_width=0.005,
@@ -223,34 +259,39 @@ class BFEEGromacs:
                         rmsd_wall_constant=0.8368,
                         ligand_selection='BFEE_Ligand',
                         protein_selection='BFEE_Protein',
-                        protein_center=protein_center_str)
+                        protein_center=protein_center_str,
+                        logger=self.logger)
         # generate the reference file
-        self.system.select_atoms('all').write('001_RMSD_bound/reference.xyz')
+        self.system.select_atoms('all').write(os.path.join(generate_basename, 'reference.xyz'))
         # generate the shell script for making the tpr file
         dirname = os.path.dirname(__file__)
         generateShellScript('001.generate_tpr_sh.template',
-                            f'{generate_basename}/001_generate_tpr',
-                            MDP_FILE_TEMPLATE=os.path.relpath(os.path.abspath('001_RMSD_bound/001_PMF.mdp'), os.path.abspath('001_RMSD_bound/')),
-                            GRO_FILE_TEMPLATE=os.path.relpath(os.path.abspath(self.structureFile), os.path.abspath('001_RMSD_bound/')),
-                            TOP_FILE_TEMPLATE=os.path.relpath(os.path.abspath(self.topologyFile), os.path.abspath('001_RMSD_bound/')),
-                            COLVARS_INPUT_TEMPLATE=os.path.relpath(os.path.abspath(colvars_inputfile_basename + '.dat'), os.path.abspath('001_RMSD_bound/')))
-        if not os.path.exists(f'{generate_basename}/output'):
-            os.makedirs(f'{generate_basename}/output')
-        print(f"Generation of {generate_basename} done.")
+                            os.path.join(generate_basename, '001_generate_tpr'),
+                            logger=self.logger,
+                            MDP_FILE_TEMPLATE=os.path.relpath(os.path.abspath(os.path.join(generate_basename, '001_PMF.mdp')), os.path.abspath(generate_basename)),
+                            GRO_FILE_TEMPLATE=os.path.relpath(os.path.abspath(self.structureFile), os.path.abspath(generate_basename)),
+                            TOP_FILE_TEMPLATE=os.path.relpath(os.path.abspath(self.topologyFile), os.path.abspath(generate_basename)),
+                            COLVARS_INPUT_TEMPLATE=os.path.relpath(os.path.abspath(colvars_inputfile_basename + '.dat'), os.path.abspath(generate_basename)))
+        if not os.path.exists(os.path.join(generate_basename, 'output')):
+            os.makedirs(os.path.join(generate_basename, 'output'))
+        self.logger.info(f"Generation of {generate_basename} done.")
+        self.logger.info('=' * 80)
     
     def generate002(self):
-        generate_basename = '002_euler_theta'
-        print(f'Generating simulation files for {generate_basename}...')
-        if not os.path.exists(f'{generate_basename}/'):
-            print(f'Making directory {generate_basename}/...')
-            os.makedirs(f'{generate_basename}')
+        generate_basename = self.basenames[1]
+        self.logger.info('=' * 80)
+        self.logger.info(f'Generating simulation files for {generate_basename}...')
+        if not os.path.exists(generate_basename):
+            self.logger.info(f'Making directory {os.path.abspath(generate_basename)}...')
+            os.makedirs(generate_basename)
         # generate the MDP file
         generateMDP('002.mdp.template',
-                    f'{generate_basename}/001_PMF',
+                    os.path.join(generate_basename, '002_PMF'),
                     timeStep=0.002,
                     numSteps=4000000,
                     temperature=300,
-                    pressure=1.01325)
+                    pressure=1.01325,
+                    logger=self.logger)
         # check if the ligand and protein is selected
         if not hasattr(self, 'ligand'):
             raise RuntimeError('The atoms of the ligand has not been selected.')
@@ -261,10 +302,39 @@ class BFEEGromacs:
         # convert angstrom to nanometer and format the string
         protein_center = convert(protein_center, "angstrom", "nm")
         protein_center_str = f'({protein_center[0]}, {protein_center[1]}, {protein_center[2]})'
-        print('COM of the protein: ' + protein_center_str + '.')
+        self.logger.info('COM of the protein: ' + protein_center_str + '.')
         # generate the index file
-        self.generateGromacsIndex(f'{generate_basename}/colvars.ndx')
-        
+        self.generateGromacsIndex(os.path.join(generate_basename, 'colvars.ndx'))
+        # generate the colvars configuration
+        colvars_inputfile_basename = os.path.join(generate_basename, '002_colvars')
+        generateColvars('002.colvars.template',
+                        colvars_inputfile_basename,
+                        logger=self.logger,
+                        eulerTheta_width=0.005,
+                        eulerTheta_lower_boundary=-10.0,
+                        eulerTheta_upper_boundary=10.0,
+                        eulerTheta_wall_constant=0.8368,
+                        ligand_selection='BFEE_Ligand',
+                        protein_selection='BFEE_Protein',
+                        protein_center=protein_center_str)
+        # generate the reference file
+        self.system.select_atoms('all').write(os.path.join(generate_basename, 'reference.xyz'))
+        # generate the shell script for making the tpr file
+        dirname = os.path.dirname(__file__)
+        generateShellScript('002.generate_tpr_sh.template',
+                            os.path.join(generate_basename, '002_generate_tpr'),
+                            logger=self.logger,
+                            BASENAME_001=self.basenames[0],
+                            MDP_FILE_TEMPLATE=os.path.relpath(os.path.abspath(os.path.join(generate_basename, '002_PMF.mdp')), os.path.abspath(generate_basename)),
+                            GRO_FILE_TEMPLATE=os.path.relpath(os.path.abspath(self.structureFile), os.path.abspath(generate_basename)),
+                            TOP_FILE_TEMPLATE=os.path.relpath(os.path.abspath(self.topologyFile), os.path.abspath(generate_basename)),
+                            COLVARS_INPUT_TEMPLATE=os.path.relpath(os.path.abspath(colvars_inputfile_basename + '.dat'), os.path.abspath(generate_basename)))
+        # also copy the awk script to modify the colvars configuration according to the PMF minima in previous stages
+        shutil.copyfile('find_min_max.awk', os.path.join(generate_basename, 'find_min_max.awk'))
+        if not os.path.exists(os.path.join(generate_basename, 'output')):
+            os.makedirs(os.path.join(generate_basename, 'output'))
+        self.logger.info(f"Generation of {generate_basename} done.")
+        self.logger.info('=' * 80)
 
 
 if __name__ == "__main__":
@@ -273,3 +343,4 @@ if __name__ == "__main__":
     bfee.setLigandAtomsGroup('segid PPRO and not (name H*)')
     bfee.setSolventAtomsGroup('resname TIP3*')
     bfee.generate001()
+    bfee.generate002()
