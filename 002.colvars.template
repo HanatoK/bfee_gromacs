@@ -1,0 +1,117 @@
+colvarsTrajFrequency      500
+colvarsRestartFrequency   50000
+indexFile colvar.ndx
+
+colvar {
+    name RMSD
+    rmsd {
+        atoms {
+            indexGroup $ligand_selection
+        }
+        refPositionsfile reference.xyz
+    }
+}
+
+colvar {
+    name                    eulerTheta
+    scriptedFunction        eulerTheta 
+
+    width                   $eulerTheta_width
+
+    lowerboundary           $eulerTheta_lower_boundary
+    upperboundary           $eulerTheta_upper_boundary
+
+    subtractAppliedForce    on
+    extendedLagrangian      on
+    extendedFluctuation     $eulerTheta_width
+
+
+    Orientation {
+        atoms { 
+            atomsFile ./ligand.pdb
+            atomsCol B
+            atomsColValue 1.0
+            centerReference    on
+            rotateReference   on
+            enableFitGradients no
+            fittingGroup {
+                atomsFile ./protein.pdb
+                atomsCol B
+                atomsColValue 1.0
+            }   
+            refPositionsFile  ./protein.pdb
+        }   
+        refPositionsFile  ./ligand.pdb
+    }   
+}
+
+
+harmonicWalls {
+  colvars eulerTheta
+  lowerWalls -10
+  upperWalls 10
+  lowerWallConstant 0.2
+  upperWallConstant 0.2
+}
+
+
+abf {
+   colvars           eulerTheta
+   FullSamples       10000
+   historyfreq       50000
+   writeCZARwindowFile
+}
+metadynamics {
+   colvars           eulerTheta
+   hillWidth         3.0
+   hillWeight        0.05
+   wellTempered      on
+   biasTemperature   4000
+}
+
+
+harmonic {
+   colvars      RMSD
+   forceConstant   10
+   centers  0
+
+}
+
+
+colvar { 
+  name translation 
+  distance { 
+    group1 { 
+      atomsFile ./protein.pdb
+      atomsCol B
+      atomsColValue 1.0 
+    } 
+    group2 { 
+      dummyAtom (4.928214281108012e-8, 3.77124109718352e-8, 6.13113826375411e-8)
+    } 
+  } 
+} 
+harmonic { 
+  colvars translation 
+  centers 0.0 
+  forceConstant 10.0 
+} 
+
+
+colvar { 
+  name orientation 
+  orientation { 
+    atoms { 
+      atomsFile ./protein.pdb
+      atomsCol B
+      atomsColValue 1.0 
+    } 
+    refPositionsFile   ./protein.pdb
+  } 
+} 
+harmonic { 
+  colvars orientation 
+  centers (1.0, 0.0, 0.0, 0.0)
+  forceConstant 200.0 
+} 
+

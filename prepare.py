@@ -69,17 +69,25 @@ def generateMDP(MDPTemplateFile, outputPrefix, timeStep, numSteps, temperature, 
     numSteps : int
         number of steps for running the simulation
     """
-    
+    print(f'generateMDP: Generating {outputPrefix + ".mdp"} from template {MDPTemplateFile}...')
+    print(f'Timestep (dt): {timeStep}')
+    print(f'Number of simulation steps (nsteps): {numSteps}')
+    print(f'Temperature: {temperature}')
+    print(f'Pressure: {pressure}')
     with open(MDPTemplateFile, 'r') as finput:
         MDP_content = string.Template(finput.read())
     MDP_content = MDP_content.safe_substitute(dt=timeStep,
-                                              numSteps=numSteps,
+                                              nsteps=numSteps,
                                               temperature=temperature,
                                               pressure=pressure)
     with open(outputPrefix + '.mdp', 'w') as foutput:
         foutput.write(MDP_content)
 
 def generateColvars(colvarsTemplate, outputPrefix, **kwargs):
+    print(f'generateColvars: Generating {outputPrefix + ".dat"} from template {colvarsTemplate}...')
+    print('Colvars parameters:')
+    for key, val in kwargs.items():
+        print(f'{key} = {val}')
     with open(colvarsTemplate, 'r') as finput:
         content = string.Template(finput.read())
     content = content.safe_substitute(**kwargs)
@@ -87,6 +95,7 @@ def generateColvars(colvarsTemplate, outputPrefix, **kwargs):
         foutput.write(content)
 
 def generateShellScript(shellTemplate, outputPrefix, **kwargs):
+    print(f'generateShellScript: Generating {outputPrefix + ".sh"} from template {shellTemplate}...')
     with open(shellTemplate, 'r') as finput:
         content = string.Template(finput.read())
     content = content.safe_substitute(**kwargs)
@@ -129,11 +138,14 @@ class BFEEGromacs:
             self.system.trajectory[0].triclinic_dimensions = get_cell(all_atoms.positions)
             dim = self.system.dimensions
             print(f'The unit cell has been reset to {dim[0]:12.5f} {dim[1]:12.5f} {dim[2]:12.5f} .')
+            newBasename = os.path.splitext(self.structureFile)[0]
+            self.structureFile = newBasename + '.new.gro'
+            self.saveStructure(self.structureFile)
         print('Initialization done.')
 
-    def saveStructure(self, outputFile, atomSelection='all'):
-        print(f'saveStructure({outputFile}) is called.')
-        selected_atoms = self.system.select_atoms(atomSelection)
+    def saveStructure(self, outputFile, selection='all'):
+        print(f'Saving a new structure file at {outputFile} with selection ({selection}).')
+        selected_atoms = self.system.select_atoms(selection)
         selected_atoms.write(outputFile)
 
     def setProteinAtomsGroup(self, selection):
@@ -143,6 +155,7 @@ class BFEEGromacs:
         selection : str
             MDAnalysis atom selection string
         """
+        print(f'Setup the atoms group of the protein by selection: {selection}')
         self.protein = self.system.select_atoms(selection)
     
     def setLigandAtomsGroup(self, selection):
@@ -152,9 +165,17 @@ class BFEEGromacs:
         selection : str
             MDAnalysis atom selection string
         """
+        print(f'Setup the atoms group of the ligand by selection: {selection}')
         self.ligand = self.system.select_atoms(selection)
 
     def setSolventAtomsGroup(self, selection):
+        """
+        Parameters
+        ----------
+        selection : str
+            MDAnalysis atom selection string
+        """
+        print(f'Setup the atoms group of the solvent molecule by selection: {selection}')
         self.solvent = self.system.select_atoms(selection)
 
     def generateGromacsIndex(self, outputFile):
@@ -167,11 +188,14 @@ class BFEEGromacs:
             self.solvent.write(outputFile, name='BFEE_Solvent', mode='a')
 
     def generate001(self):
-        if not os.path.exists('001_RMSD_bound'):
-            os.makedirs('001_RMSD_bound')
+        generate_basename = '001_RMSD_bound'
+        print(f'Generating simulation files for {generate_basename}...')
+        if not os.path.exists(f'{generate_basename}/'):
+            print(f'Making directory {generate_basename}/...')
+            os.makedirs(f'{generate_basename}')
         # generate the MDP file
         generateMDP('001.mdp.template',
-                    '001_RMSD_bound/001_PMF',
+                    f'{generate_basename}/001_PMF',
                     timeStep=0.002,
                     numSteps=4000000,
                     temperature=300,
@@ -186,14 +210,16 @@ class BFEEGromacs:
         # convert angstrom to nanometer and format the string
         protein_center = convert(protein_center, "angstrom", "nm")
         protein_center_str = f'({protein_center[0]}, {protein_center[1]}, {protein_center[2]})'
+        print('COM of the protein: ' + protein_center_str + '.')
         # generate the index file
-        self.generateGromacsIndex('001_RMSD_bound/colvars.ndx')
+        self.generateGromacsIndex(f'{generate_basename}/colvars.ndx')
         # generate the colvars configuration
+        colvars_inputfile_basename = f'{generate_basename}/001_colvars'
         generateColvars('001.colvars.template',
-                        '001_RMSD_bound/001_colvars',
+                        colvars_inputfile_basename,
                         rmsd_bin_width=0.005,
                         rmsd_lower_boundary=0.0,
-                        rmsd_upper_boundary=0.3,
+                        rmsd_upper_boundary=0.5,
                         rmsd_wall_constant=0.8368,
                         ligand_selection='BFEE_Ligand',
                         protein_selection='BFEE_Protein',
@@ -203,12 +229,42 @@ class BFEEGromacs:
         # generate the shell script for making the tpr file
         dirname = os.path.dirname(__file__)
         generateShellScript('001.generate_tpr_sh.template',
-                            '001_RMSD_bound/001_generate_tpr',
+                            f'{generate_basename}/001_generate_tpr',
                             MDP_FILE_TEMPLATE=os.path.relpath(os.path.abspath('001_RMSD_bound/001_PMF.mdp'), os.path.abspath('001_RMSD_bound/')),
                             GRO_FILE_TEMPLATE=os.path.relpath(os.path.abspath(self.structureFile), os.path.abspath('001_RMSD_bound/')),
-                            TOP_FILE_TEMPLATE=os.path.relpath(os.path.abspath(self.topologyFile), os.path.abspath('001_RMSD_bound/')))
-        if not os.path.exists('001_RMSD_bound/output'):
-            os.makedirs('001_RMSD_bound/output')
+                            TOP_FILE_TEMPLATE=os.path.relpath(os.path.abspath(self.topologyFile), os.path.abspath('001_RMSD_bound/')),
+                            COLVARS_INPUT_TEMPLATE=os.path.relpath(os.path.abspath(colvars_inputfile_basename + '.dat'), os.path.abspath('001_RMSD_bound/')))
+        if not os.path.exists(f'{generate_basename}/output'):
+            os.makedirs(f'{generate_basename}/output')
+        print(f"Generation of {generate_basename} done.")
+    
+    def generate002(self):
+        generate_basename = '002_euler_theta'
+        print(f'Generating simulation files for {generate_basename}...')
+        if not os.path.exists(f'{generate_basename}/'):
+            print(f'Making directory {generate_basename}/...')
+            os.makedirs(f'{generate_basename}')
+        # generate the MDP file
+        generateMDP('002.mdp.template',
+                    f'{generate_basename}/001_PMF',
+                    timeStep=0.002,
+                    numSteps=4000000,
+                    temperature=300,
+                    pressure=1.01325)
+        # check if the ligand and protein is selected
+        if not hasattr(self, 'ligand'):
+            raise RuntimeError('The atoms of the ligand has not been selected.')
+        if not hasattr(self, 'protein'):
+            raise RuntimeError('The atoms of the protein has not been selected.')
+        # measure the COM of the protein
+        protein_center = measure_center(self.protein.positions)
+        # convert angstrom to nanometer and format the string
+        protein_center = convert(protein_center, "angstrom", "nm")
+        protein_center_str = f'({protein_center[0]}, {protein_center[1]}, {protein_center[2]})'
+        print('COM of the protein: ' + protein_center_str + '.')
+        # generate the index file
+        self.generateGromacsIndex(f'{generate_basename}/colvars.ndx')
+        
 
 
 if __name__ == "__main__":
