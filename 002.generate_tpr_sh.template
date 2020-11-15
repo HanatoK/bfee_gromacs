@@ -25,7 +25,8 @@ $GMX_BIN grompp -f $MDP_FILE -c $GRO_FILE -p $TOP_FILE -o $TPR_FILE -po $NEW_MDP
 
 # modify the colvars input file using the PMF minima in previous stages
 ARGMIN_001=$(awk -f ./find_min_max.awk ../$BASENAME_001/output/$BASENAME_001.out.abf1.czar.pmf)
-sed -i "s/001_pmf_argmin/$ARGMIN_001/g" $COLVARS_INPUT_TEMPLATE
+sed -i.orig "s/001_pmf_argmin/$ARGMIN_001/g" $COLVARS_INPUT_TEMPLATE
+rm -f $COLVARS_INPUT_TEMPLATE.orig
 
 # run the PMF calculation
 mkdir -p output
