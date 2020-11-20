@@ -13,14 +13,8 @@ colvar {
 }
 
 colvar {
-    name                    eulerTheta
-    scriptedFunction        eulerTheta 
-    width                   $eulerTheta_width
-    lowerboundary           $eulerTheta_lower_boundary
-    upperboundary           $eulerTheta_upper_boundary
-    subtractAppliedForce    on
-    extendedLagrangian      on
-    extendedFluctuation     $eulerTheta_width
+    name                eulerTheta
+    scriptedFunction    eulerTheta 
     Orientation {
         atoms {
             indexGroup          $ligand_selection
@@ -36,24 +30,47 @@ colvar {
     }
 }
 
-
-harmonicWalls {
-    colvars             eulerTheta
-    lowerWalls          $eulerTheta_lower_boundary
-    upperWalls          $eulerTheta_upper_boundary
-    lowerWallConstant   $eulerTheta_wall_constant
-    upperWallConstant   $eulerTheta_wall_constant
+colvar {
+    name                    eulerPhi
+    scriptedFunction        eulerPhi
+    width                   $eulerPhi_width 
+    lowerboundary           $eulerPhi_lower_boundary 
+    upperboundary           $eulerPhi_upper_boundary
+    subtractAppliedForce    on
+    extendedLagrangian      on
+    extendedFluctuation     $eulerPhi_width
+    Orientation {
+        atoms {
+            indexGroup          $ligand_selection
+            centerReference     on
+            rotateReference     on
+            enableFitGradients  off
+            fittingGroup {
+                indexGroup $protein_selection
+            }
+            refPositionsfile reference.xyz
+        }
+        refPositionsfile reference.xyz
+    }
 }
 
+harmonicWalls {
+    colvars             eulerPhi
+    lowerWalls          $eulerPhi_lower_boundary
+    upperWalls          $eulerPhi_upper_boundary
+    lowerWallConstant   $eulerPhi_wall_constant
+    upperWallConstant   $eulerPhi_wall_constant
+}
 
 abf {
-    colvars             eulerTheta
+    colvars             eulerPhi
     FullSamples         10000
     historyfreq         50000
     writeCZARwindowFile
 }
+
 metadynamics {
-    colvars             eulerTheta
+    colvars             eulerPhi
     hillWidth           3.0
     hillWeight          0.2092
     wellTempered        on
@@ -61,9 +78,16 @@ metadynamics {
 }
 
 harmonic {
-    colvars         RMSD
-    forceConstant   41.84
-    centers         001_pmf_argmin
+   colvars          eulerTheta
+   forceConstant    0.4184
+   centers          002_pmf_argmin
+}
+
+
+harmonic {
+   colvars          RMSD
+   forceConstant    41.84
+   centers          001_pmf_argmin
 }
 
 colvar {
