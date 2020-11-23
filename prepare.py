@@ -545,6 +545,77 @@ class BFEEGromacs:
         self.logger.info(f"Generation of {generate_basename} done.")
         self.logger.info('=' * 80)
 
+    def generate006(self):
+        generate_basename = self.basenames[5]
+        self.logger.info('=' * 80)
+        self.logger.info(f'Generating simulation files for {generate_basename}...')
+        if not os.path.exists(generate_basename):
+            self.logger.info(f'Making directory {os.path.abspath(generate_basename)}...')
+            os.makedirs(generate_basename)
+        # generate the MDP file
+        generateMDP('006.mdp.template',
+                    os.path.join(generate_basename, '006_PMF'),
+                    timeStep=0.002,
+                    numSteps=4000000,
+                    temperature=300,
+                    pressure=1.01325,
+                    logger=self.logger)
+        # check if the ligand and protein is selected
+        if not hasattr(self, 'ligand'):
+            raise RuntimeError('The atoms of the ligand has not been selected.')
+        if not hasattr(self, 'protein'):
+            raise RuntimeError('The atoms of the protein has not been selected.')
+        # measure the COM of the protein
+        protein_center = measure_center(self.protein.positions)
+        # convert angstrom to nanometer and format the string
+        protein_center = convert(protein_center, "angstrom", "nm")
+        protein_center_str = f'({protein_center[0]}, {protein_center[1]}, {protein_center[2]})'
+        self.logger.info('COM of the protein: ' + protein_center_str + '.')
+        # generate the index file
+        self.generateGromacsIndex(os.path.join(generate_basename, 'colvars.ndx'))
+        # generate the colvars configuration
+        colvars_inputfile_basename = os.path.join(generate_basename, '006_colvars')
+        # measure the current polar theta angles
+        ligand_center = measure_center(self.ligand.positions)
+        polar_theta, polar_phi = mearsurePolarAngles(protein_center, ligand_center)
+        polar_phi_center = np.around(polar_phi, 1)
+        self.logger.info(f'Measured polar angles: theta = {polar_theta:12.5f} ; phi = {polar_phi:12.5f}')
+        polar_phi_width = 0.005
+        polar_phi_lower = polar_phi_center - polar_phi_width * np.ceil(10 / polar_phi_width)
+        polar_phi_upper = polar_phi_center + polar_phi_width * np.ceil(10 / polar_phi_width)
+        generateColvars('006.colvars.template',
+                        colvars_inputfile_basename,
+                        logger=self.logger,
+                        polarPhi_width=polar_phi_width,
+                        polarPhi_lower_boundary=np.around(polar_phi_lower, 2),
+                        polarPhi_upper_boundary=np.around(polar_phi_upper, 2),
+                        polarPhi_wall_constant=0.8368,
+                        ligand_selection='BFEE_Ligand',
+                        protein_selection='BFEE_Protein',
+                        protein_center=protein_center_str)
+        # generate the reference file
+        self.system.select_atoms('all').write(os.path.join(generate_basename, 'reference.xyz'))
+        # generate the shell script for making the tpr file
+        dirname = os.path.dirname(__file__)
+        generateShellScript('006.generate_tpr_sh.template',
+                            os.path.join(generate_basename, '006_generate_tpr'),
+                            logger=self.logger,
+                            BASENAME_001=self.basenames[0],
+                            BASENAME_002=self.basenames[1],
+                            BASENAME_003=self.basenames[2],
+                            BASENAME_004=self.basenames[3],
+                            BASENAME_005=self.basenames[4],
+                            MDP_FILE_TEMPLATE=os.path.relpath(os.path.abspath(os.path.join(generate_basename, '006_PMF.mdp')), os.path.abspath(generate_basename)),
+                            GRO_FILE_TEMPLATE=os.path.relpath(os.path.abspath(self.structureFile), os.path.abspath(generate_basename)),
+                            TOP_FILE_TEMPLATE=os.path.relpath(os.path.abspath(self.topologyFile), os.path.abspath(generate_basename)),
+                            COLVARS_INPUT_TEMPLATE=os.path.relpath(os.path.abspath(colvars_inputfile_basename + '.dat'), os.path.abspath(generate_basename)))
+        # also copy the awk script to modify the colvars configuration according to the PMF minima in previous stages
+        shutil.copyfile('find_min_max.awk', os.path.join(generate_basename, 'find_min_max.awk'))
+        if not os.path.exists(os.path.join(generate_basename, 'output')):
+            os.makedirs(os.path.join(generate_basename, 'output'))
+        self.logger.info(f"Generation of {generate_basename} done.")
+        self.logger.info('=' * 80)
+
 if __name__ == "__main__":
     bfee = BFEEGromacs('p41-abl.pdb', 'p41-abl.top')
     bfee.setProteinAtomsGroup('segid SH3D and not (name H*)')
@@ -555,3 +626,4 @@ if __name__ == "__main__":
     bfee.generate003()
     bfee.generate004()
     bfee.generate005()
+    bfee.generate006()
