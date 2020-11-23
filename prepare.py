@@ -256,9 +256,9 @@ class BFEEGromacs:
                     pressure=1.01325)
         # check if the ligand and protein is selected
         if not hasattr(self, 'ligand'):
-            raise RuntimeError('The atoms of the ligand has not been selected.')
+            raise RuntimeError('The atoms of the ligand have not been selected.')
         if not hasattr(self, 'protein'):
-            raise RuntimeError('The atoms of the protein has not been selected.')
+            raise RuntimeError('The atoms of the protein have not been selected.')
         # measure the COM of the protein
         protein_center = measure_center(self.protein.positions)
         # convert angstrom to nanometer and format the string
@@ -312,9 +312,9 @@ class BFEEGromacs:
                     logger=self.logger)
         # check if the ligand and protein is selected
         if not hasattr(self, 'ligand'):
-            raise RuntimeError('The atoms of the ligand has not been selected.')
+            raise RuntimeError('The atoms of the ligand have not been selected.')
         if not hasattr(self, 'protein'):
-            raise RuntimeError('The atoms of the protein has not been selected.')
+            raise RuntimeError('The atoms of the protein have not been selected.')
         # measure the COM of the protein
         protein_center = measure_center(self.protein.positions)
         # convert angstrom to nanometer and format the string
@@ -371,9 +371,9 @@ class BFEEGromacs:
                     logger=self.logger)
         # check if the ligand and protein is selected
         if not hasattr(self, 'ligand'):
-            raise RuntimeError('The atoms of the ligand has not been selected.')
+            raise RuntimeError('The atoms of the ligand have not been selected.')
         if not hasattr(self, 'protein'):
-            raise RuntimeError('The atoms of the protein has not been selected.')
+            raise RuntimeError('The atoms of the protein have not been selected.')
         # measure the COM of the protein
         protein_center = measure_center(self.protein.positions)
         # convert angstrom to nanometer and format the string
@@ -431,9 +431,9 @@ class BFEEGromacs:
                     logger=self.logger)
         # check if the ligand and protein is selected
         if not hasattr(self, 'ligand'):
-            raise RuntimeError('The atoms of the ligand has not been selected.')
+            raise RuntimeError('The atoms of the ligand have not been selected.')
         if not hasattr(self, 'protein'):
-            raise RuntimeError('The atoms of the protein has not been selected.')
+            raise RuntimeError('The atoms of the protein have not been selected.')
         # measure the COM of the protein
         protein_center = measure_center(self.protein.positions)
         # convert angstrom to nanometer and format the string
@@ -492,9 +492,9 @@ class BFEEGromacs:
                     logger=self.logger)
         # check if the ligand and protein is selected
         if not hasattr(self, 'ligand'):
-            raise RuntimeError('The atoms of the ligand has not been selected.')
+            raise RuntimeError('The atoms of the ligand have not been selected.')
         if not hasattr(self, 'protein'):
-            raise RuntimeError('The atoms of the protein has not been selected.')
+            raise RuntimeError('The atoms of the protein have not been selected.')
         # measure the COM of the protein
         protein_center = measure_center(self.protein.positions)
         # convert angstrom to nanometer and format the string
@@ -562,9 +562,9 @@ class BFEEGromacs:
                     logger=self.logger)
         # check if the ligand and protein is selected
         if not hasattr(self, 'ligand'):
-            raise RuntimeError('The atoms of the ligand has not been selected.')
+            raise RuntimeError('The atoms of the ligand have not been selected.')
         if not hasattr(self, 'protein'):
-            raise RuntimeError('The atoms of the protein has not been selected.')
+            raise RuntimeError('The atoms of the protein have not been selected.')
         # measure the COM of the protein
         protein_center = measure_center(self.protein.positions)
         # convert angstrom to nanometer and format the string
@@ -616,6 +616,97 @@ class BFEEGromacs:
         self.logger.info(f"Generation of {generate_basename} done.")
         self.logger.info('=' * 80)
 
+    def generate007(self):
+        generate_basename = self.basenames[6]
+        self.logger.info('=' * 80)
+        self.logger.info(f'Generating simulation files for {generate_basename}...')
+        if not os.path.exists(generate_basename):
+            self.logger.info(f'Making directory {os.path.abspath(generate_basename)}...')
+            os.makedirs(generate_basename)
+        # generate the MDP file
+        generateMDP('007_min.mdp.template',
+                    os.path.join(generate_basename, '007_Minimize'),
+                    timeStep=0.002,
+                    numSteps=100000,
+                    temperature=300,
+                    pressure=1.01325,
+                    logger=self.logger)
+        generateMDP('007.mdp.template',
+                    os.path.join(generate_basename, '007_PMF'),
+                    timeStep=0.002,
+                    numSteps=80000000,
+                    temperature=300,
+                    pressure=1.01325,
+                    logger=self.logger)
+        # check if the ligand, protein and solvent is selected
+        if not hasattr(self, 'ligand'):
+            raise RuntimeError('The atoms of the ligand have not been selected.')
+        if not hasattr(self, 'protein'):
+            raise RuntimeError('The atoms of the protein have not been selected.')
+        if not hasattr(self, 'solvent'):
+            raise RuntimeError('The atoms of the solvent have not been selected.')
+        # measure the COM of the protein
+        protein_center = measure_center(self.protein.positions)
+        # convert angstrom to nanometer and format the string
+        protein_center = convert(protein_center, "angstrom", "nm")
+        protein_center_str = f'({protein_center[0]}, {protein_center[1]}, {protein_center[2]})'
+        self.logger.info('COM of the protein: ' + protein_center_str + '.')
+        # generate the index file
+        self.generateGromacsIndex(os.path.join(generate_basename, 'colvars.ndx'))
+        # generate the colvars configuration
+        colvars_inputfile_basename = os.path.join(generate_basename, '007_colvars')
+        # measure the current COM distance from the ligand to protein
+        ligand_center = measure_center(self.ligand.positions)
+        r_center = np.sqrt(np.dot(ligand_center - protein_center, ligand_center - protein_center))
+        # convert r_center to nm
+        r_center = np.around(convert(r_center, 'angstrom', 'nm'), 2)
+        r_width = 0.01
+        # r_lower_boundary = r_center - r_lower_shift
+        # r_lower_shift is default to 0.2 nm
+        r_lower_shift = 0.2
+        r_lower_boundary = r_center - r_lower_shift
+        # r_upper_boundary = r_center + r_upper_shift
+        # r_upper_shift is default to 2.1 nm
+        # also we will need r_upper_shift to enlarge the solvent box
+        r_upper_shift = 2.1
+        r_upper_boundary = r_center + r_upper_shift
+        generateColvars('007.colvars.template',
+                        colvars_inputfile_basename,
+                        logger=self.logger,
+                        r_width=r_width,
+                        r_lower_boundary=r_lower_boundary,
+                        r_upper_boundary=r_upper_boundary,
+                        r_wall_constant=0.8368,
+                        ligand_selection='BFEE_Ligand',
+                        protein_selection='BFEE_Protein',
+                        protein_center=protein_center_str)
+        # generate the reference file
+        self.system.select_atoms('all').write(os.path.join(generate_basename, 'reference.xyz'))
+        # write the solvent molecules
+        self.solvent.write(os.path.join(generate_basename, 'solvent.gro'))
+        # generate the shell script for making the tpr file
+        dirname = os.path.dirname(__file__)
+        # TODO
+        generateShellScript('007.generate_tpr_sh.template',
+                            os.path.join(generate_basename, '007_generate_tpr'),
+                            logger=self.logger,
+                            BASENAME_001=self.basenames[0],
+                            BASENAME_002=self.basenames[1],
+                            BASENAME_003=self.basenames[2],
+                            BASENAME_004=self.basenames[3],
+                            BASENAME_005=self.basenames[4],
+                            BASENAME_006=self.basenames[5],
+                            MDP_FILE_TEMPLATE=os.path.relpath(os.path.abspath(os.path.join(generate_basename, '007_PMF.mdp')), os.path.abspath(generate_basename)),
+                            GRO_FILE_TEMPLATE=os.path.relpath(os.path.abspath(self.structureFile), os.path.abspath(generate_basename)),
+                            TOP_FILE_TEMPLATE=os.path.relpath(os.path.abspath(self.topologyFile), os.path.abspath(generate_basename)),
+                            COLVARS_INPUT_TEMPLATE=os.path.relpath(os.path.abspath(colvars_inputfile_basename + '.dat'), os.path.abspath(generate_basename)))
+        # also copy the awk script to modify the colvars configuration according to the PMF minima in previous stages
+        shutil.copyfile('find_min_max.awk', os.path.join(generate_basename, 'find_min_max.awk'))
+        if not os.path.exists(os.path.join(generate_basename, 'output')):
+            os.makedirs(os.path.join(generate_basename, 'output'))
+        self.logger.info(f"Generation of {generate_basename} done.")
+        self.logger.info('=' * 80)
+
 if __name__ == "__main__":
     bfee = BFEEGromacs('p41-abl.pdb', 'p41-abl.top')
     bfee.setProteinAtomsGroup('segid SH3D and not (name H*)')
@@ -627,3 +718,4 @@ if __name__ == "__main__":
     bfee.generate004()
     bfee.generate005()
     bfee.generate006()
+    bfee.generate007()
