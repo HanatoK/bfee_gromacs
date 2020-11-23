@@ -1,6 +1,6 @@
 colvarsTrajFrequency    500
 colvarsRestartFrequency 50000
-indexFile               colvar.ndx
+indexFile               colvars.ndx
 
 colvar {
     name RMSD
@@ -14,13 +14,12 @@ colvar {
 
 colvar {
     name                eulerTheta
-    scriptedFunction    eulerTheta 
-    Orientation {
+    eulerTheta {
         atoms {
             indexGroup          $ligand_selection
             centerReference     on
             rotateReference     on
-            enableFitGradients  off
+            enableFitGradients  on
             fittingGroup {
                 indexGroup $protein_selection
             }
@@ -32,19 +31,18 @@ colvar {
 
 colvar {
     name                    eulerPhi
-    scriptedFunction        eulerPhi
     width                   $eulerPhi_width 
     lowerboundary           $eulerPhi_lower_boundary 
     upperboundary           $eulerPhi_upper_boundary
     subtractAppliedForce    on
     extendedLagrangian      on
     extendedFluctuation     $eulerPhi_width
-    Orientation {
+    eulerPhi {
         atoms {
             indexGroup          $ligand_selection
             centerReference     on
             rotateReference     on
-            enableFitGradients  off
+            enableFitGradients  on
             fittingGroup {
                 indexGroup $protein_selection
             }

@@ -1,6 +1,6 @@
 colvarsTrajFrequency    500
 colvarsRestartFrequency 50000
-indexFile               colvar.ndx
+indexFile               colvars.ndx
 
 colvar {
     name                    RMSD
