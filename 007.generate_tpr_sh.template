@@ -17,14 +17,14 @@ GRO_FILE=$GRO_FILE_TEMPLATE
 TOP_FILE=$TOP_FILE_TEMPLATE
 
 # enlarge the pbc box
-echo "Enlarge the box to $new_box_x $new_box_y $new_box_z"
-$GMX_BIN editconf -f $GRO_FILE -box $new_box_x $new_box_y $new_box_z -o $BOX_MODIFIED_GRO
+echo "Enlarge the box to $NEW_BOX_X_TEMPLATE $NEW_BOX_Y_TEMPLATE $NEW_BOX_Z_TEMPLATE"
+$GMX_BIN editconf -f $GRO_FILE -box $NEW_BOX_X_TEMPLATE $NEW_BOX_Y_TEMPLATE $NEW_BOX_Z_TEMPLATE -o $BOX_MODIFIED_GRO_TEMPLATE
 # add more solvents to the new box
-NEW_TOP_FILE=$MODIFIED_TOP
-NEW_GRO_FILE=$MODIFIED_GRO
+NEW_TOP_FILE=$MODIFIED_TOP_TEMPLATE
+NEW_GRO_FILE=$MODIFIED_GRO_TEMPLATE
 cp -f $TOP_FILE $NEW_TOP_FILE
 echo "Add more solvent molecules to fill the box..."
-$GMX_BIN solvate -cp $BOX_MODIFIED_GRO -cs solvent.gro -p $NEW_TOP_FILE -box $new_box_x $new_box_y $new_box_z -o $NEW_GRO_FILE
+$GMX_BIN solvate -cp $BOX_MODIFIED_GRO_TEMPLATE -cs solvent.gro -p $NEW_TOP_FILE -box $NEW_BOX_X_TEMPLATE $NEW_BOX_Y_TEMPLATE $NEW_BOX_Z_TEMPLATE -o $NEW_GRO_FILE
 
 # generate the tpr file for minimization
 OUTPUT_BASENAME=$(basename $(pwd))
@@ -37,7 +37,7 @@ $GMX_BIN grompp -f $MIN_MDP_FILE -c $NEW_GRO_FILE -p $NEW_TOP_FILE -o $MIN_TPR_F
 # run minimization
 mkdir -p output_minimization
 DEFAULT_OUTPUT_FILENAME="output_minimization/$OUTPUT_BASENAME.min.out"
-$GMX_BIN mdrun -ntmpi 1 -ntomp 4 -s $MIN_TPR_FILE -deffnm $DEFAULT_OUTPUT_FILENAME
+$GMX_BIN mdrun -s $MIN_TPR_FILE -deffnm $DEFAULT_OUTPUT_FILENAME
 
 # generate the tpr file
 OUTPUT_BASENAME=$(basename $(pwd))

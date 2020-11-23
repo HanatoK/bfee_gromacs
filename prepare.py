@@ -686,7 +686,9 @@ class BFEEGromacs:
         self.solvent.write(os.path.join(generate_basename, 'solvent.gro'))
         # generate the shell script for making the tpr file
         dirname = os.path.dirname(__file__)
-        # TODO
+        new_box_x = self.system.dimensions[0] + r_upper_shift
+        new_box_y = self.system.dimensions[1] + r_upper_shift
+        new_box_z = self.system.dimensions[2] + r_upper_shift
         generateShellScript('007.generate_tpr_sh.template',
                             os.path.join(generate_basename, '007_generate_tpr'),
                             logger=self.logger,
@@ -696,6 +698,13 @@ class BFEEGromacs:
                             BASENAME_004=self.basenames[3],
                             BASENAME_005=self.basenames[4],
                             BASENAME_006=self.basenames[5],
+                            BOX_MODIFIED_GRO_TEMPLATE=os.path.relpath(os.path.abspath(os.path.join(generate_basename, 'box_modified.gro')), os.path.abspath(generate_basename)),
+                            MODIFIED_TOP_TEMPLATE=os.path.relpath(os.path.abspath(os.path.join(generate_basename, 'solvated.top')), os.path.abspath(generate_basename)),
+                            MODIFIED_GRO_TEMPLATE=os.path.relpath(os.path.abspath(os.path.join(generate_basename, 'solvated.gro')), os.path.abspath(generate_basename)),
+                            NEW_BOX_X_TEMPLATE=new_box_x,
+                            NEW_BOX_Y_TEMPLATE=new_box_y,
+                            NEW_BOX_Z_TEMPLATE=new_box_z,
+                            MIN_MDP_FILE_TEMPLATE=os.path.relpath(os.path.abspath(os.path.join(generate_basename, '007_Minimize.mdp')), os.path.abspath(generate_basename)),
                             MDP_FILE_TEMPLATE=os.path.relpath(os.path.abspath(os.path.join(generate_basename, '007_PMF.mdp')), os.path.abspath(generate_basename)),
                             GRO_FILE_TEMPLATE=os.path.relpath(os.path.abspath(self.structureFile), os.path.abspath(generate_basename)),
                             TOP_FILE_TEMPLATE=os.path.relpath(os.path.abspath(self.topologyFile), os.path.abspath(generate_basename)),
