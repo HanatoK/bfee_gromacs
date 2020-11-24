@@ -200,7 +200,7 @@ class BFEEGromacs:
         selected_atoms = self.system.select_atoms(selection)
         selected_atoms.write(outputFile)
 
-    def setProteinAtomsGroup(self, selection):
+    def setProteinHeavyAtomsGroup(self, selection):
         """
         Parameters
         ----------
@@ -210,7 +210,7 @@ class BFEEGromacs:
         self.logger.info(f'Setup the atoms group of the protein by selection: {selection}')
         self.protein = self.system.select_atoms(selection)
     
-    def setLigandAtomsGroup(self, selection):
+    def setLigandHeavyAtomsGroup(self, selection):
         """
         Parameters
         ----------
@@ -723,10 +723,20 @@ class BFEEGromacs:
         self.logger.info(f"Generation of {generate_basename} done.")
         self.logger.info('=' * 80)
 
+    def generate008(self, ligandOnlyStructure, ligandOnlyTopology):
+        self.handler.setFormatter(logging.Formatter('%(asctime)s [BFEEGromacs][008][%(levelname)s]:%(message)s'))
+        generate_basename = self.basenames[6]
+        self.logger.info('=' * 80)
+        self.logger.info(f'Generating simulation files for {generate_basename}...')
+        if not os.path.exists(generate_basename):
+            self.logger.info(f'Making directory {os.path.abspath(generate_basename)}...')
+            os.makedirs(generate_basename)
+        # TODO
+
 if __name__ == "__main__":
     bfee = BFEEGromacs('p41-abl.pdb', 'p41-abl.top')
-    bfee.setProteinAtomsGroup('segid SH3D and not (name H*)')
-    bfee.setLigandAtomsGroup('segid PPRO and not (name H*)')
+    bfee.setProteinHeavyAtomsGroup('segid SH3D and not (name H*)')
+    bfee.setLigandHeavyAtomsGroup('segid PPRO and not (name H*)')
     bfee.setSolventAtomsGroup('resname TIP3*')
     bfee.generate001()
     bfee.generate002()
@@ -735,3 +745,4 @@ if __name__ == "__main__":
     bfee.generate005()
     bfee.generate006()
     bfee.generate007()
+    bfee.generate008()
