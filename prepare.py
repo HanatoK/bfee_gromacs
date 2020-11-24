@@ -240,6 +240,7 @@ class BFEEGromacs:
             self.solvent.write(outputFile, name='BFEE_Solvent', mode='a')
 
     def generate001(self):
+        self.handler.setFormatter(logging.Formatter('%(asctime)s [BFEEGromacs][001][%(levelname)s]:%(message)s'))
         generate_basename = self.basenames[0]
         self.logger.info('=' * 80)
         self.logger.info(f'Generating simulation files for {generate_basename}...')
@@ -296,6 +297,7 @@ class BFEEGromacs:
         self.logger.info('=' * 80)
     
     def generate002(self):
+        self.handler.setFormatter(logging.Formatter('%(asctime)s [BFEEGromacs][002][%(levelname)s]:%(message)s'))
         generate_basename = self.basenames[1]
         self.logger.info('=' * 80)
         self.logger.info(f'Generating simulation files for {generate_basename}...')
@@ -355,6 +357,7 @@ class BFEEGromacs:
         self.logger.info('=' * 80)
 
     def generate003(self):
+        self.handler.setFormatter(logging.Formatter('%(asctime)s [BFEEGromacs][003][%(levelname)s]:%(message)s'))
         generate_basename = self.basenames[2]
         self.logger.info('=' * 80)
         self.logger.info(f'Generating simulation files for {generate_basename}...')
@@ -415,6 +418,7 @@ class BFEEGromacs:
         self.logger.info('=' * 80)
 
     def generate004(self):
+        self.handler.setFormatter(logging.Formatter('%(asctime)s [BFEEGromacs][004][%(levelname)s]:%(message)s'))
         generate_basename = self.basenames[3]
         self.logger.info('=' * 80)
         self.logger.info(f'Generating simulation files for {generate_basename}...')
@@ -476,6 +480,7 @@ class BFEEGromacs:
         self.logger.info('=' * 80)
 
     def generate005(self):
+        self.handler.setFormatter(logging.Formatter('%(asctime)s [BFEEGromacs][005][%(levelname)s]:%(message)s'))
         generate_basename = self.basenames[4]
         self.logger.info('=' * 80)
         self.logger.info(f'Generating simulation files for {generate_basename}...')
@@ -546,6 +551,7 @@ class BFEEGromacs:
         self.logger.info('=' * 80)
 
     def generate006(self):
+        self.handler.setFormatter(logging.Formatter('%(asctime)s [BFEEGromacs][006][%(levelname)s]:%(message)s'))
         generate_basename = self.basenames[5]
         self.logger.info('=' * 80)
         self.logger.info(f'Generating simulation files for {generate_basename}...')
@@ -617,6 +623,7 @@ class BFEEGromacs:
         self.logger.info('=' * 80)
 
     def generate007(self):
+        self.handler.setFormatter(logging.Formatter('%(asctime)s [BFEEGromacs][007][%(levelname)s]:%(message)s'))
         generate_basename = self.basenames[6]
         self.logger.info('=' * 80)
         self.logger.info(f'Generating simulation files for {generate_basename}...')
@@ -686,9 +693,9 @@ class BFEEGromacs:
         self.solvent.write(os.path.join(generate_basename, 'solvent.gro'))
         # generate the shell script for making the tpr file
         dirname = os.path.dirname(__file__)
-        new_box_x = self.system.dimensions[0] + r_upper_shift
-        new_box_y = self.system.dimensions[1] + r_upper_shift
-        new_box_z = self.system.dimensions[2] + r_upper_shift
+        new_box_x = np.around(convert(self.system.dimensions[0], 'angstrom', 'nm'), 2) + r_upper_shift
+        new_box_y = np.around(convert(self.system.dimensions[1], 'angstrom', 'nm'), 2) + r_upper_shift
+        new_box_z = np.around(convert(self.system.dimensions[2], 'angstrom', 'nm'), 2) + r_upper_shift
         generateShellScript('007.generate_tpr_sh.template',
                             os.path.join(generate_basename, '007_generate_tpr'),
                             logger=self.logger,
@@ -701,9 +708,9 @@ class BFEEGromacs:
                             BOX_MODIFIED_GRO_TEMPLATE=os.path.relpath(os.path.abspath(os.path.join(generate_basename, 'box_modified.gro')), os.path.abspath(generate_basename)),
                             MODIFIED_TOP_TEMPLATE=os.path.relpath(os.path.abspath(os.path.join(generate_basename, 'solvated.top')), os.path.abspath(generate_basename)),
                             MODIFIED_GRO_TEMPLATE=os.path.relpath(os.path.abspath(os.path.join(generate_basename, 'solvated.gro')), os.path.abspath(generate_basename)),
-                            NEW_BOX_X_TEMPLATE=new_box_x,
-                            NEW_BOX_Y_TEMPLATE=new_box_y,
-                            NEW_BOX_Z_TEMPLATE=new_box_z,
+                            NEW_BOX_X_TEMPLATE=f'{new_box_x:.5f}',
+                            NEW_BOX_Y_TEMPLATE=f'{new_box_y:.5f}',
+                            NEW_BOX_Z_TEMPLATE=f'{new_box_z:.5f}',
                             MIN_MDP_FILE_TEMPLATE=os.path.relpath(os.path.abspath(os.path.join(generate_basename, '007_Minimize.mdp')), os.path.abspath(generate_basename)),
                             MDP_FILE_TEMPLATE=os.path.relpath(os.path.abspath(os.path.join(generate_basename, '007_PMF.mdp')), os.path.abspath(generate_basename)),
                             GRO_FILE_TEMPLATE=os.path.relpath(os.path.abspath(self.structureFile), os.path.abspath(generate_basename)),
