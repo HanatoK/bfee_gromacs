@@ -49,13 +49,13 @@ def get_cell(atom_positions):
                      cell_basis_vector3])
 
 
-def merge_files(filename_list, output_filename):
-    """Join a list of index files into a single one"""
-    with open(output_filename, "w") as foutput:
-        for fn in filename_list:
-            with open(fn, "r") as finput:
-                for line in finput:
-                    foutput.write(line)
+#def merge_files(filename_list, output_filename):
+    #"""Join a list of index files into a single one"""
+    #with open(output_filename, "w") as foutput:
+        #for fn in filename_list:
+            #with open(fn, "r") as finput:
+                #for line in finput:
+                    #foutput.write(line)
 
 
 def generateMDP(MDPTemplateFile, outputPrefix, timeStep, numSteps, temperature, pressure, logger=None):
@@ -148,10 +148,15 @@ class BFEEGromacs:
     
     Attributes
     ----------
+    logger : logging.Logger
+        logger object for debugging
+    handler : logging.StreamHandler
+        output stream of the debug output
     structureFile : str
-        the filename of the structfile (either in PDB or GRO format)
+        filename of the structure file (either in PDB or GRO format) of the
+        protein-ligand complex
     topologyFile : str
-        the filename of the GROMACS topology file
+        filename of the GROMACS topology file
     
     Methods
     -------
@@ -162,7 +167,7 @@ class BFEEGromacs:
         select a group of atoms and save it
 
     """
-    def __init__(self, structureFile, topologyFile, ligandOnlyStructureFile, ligandOnlyTopologyFile):
+    def __init__(self, structureFile, topologyFile, ligandOnlyStructureFile, ligandOnlyTopologyFile, baseDirectory=None):
         self.logger = logging.getLogger()
         self.handler = logging.StreamHandler(sys.stdout)
         self.handler.setFormatter(logging.Formatter('%(asctime)s [BFEEGromacs][%(levelname)s]:%(message)s'))
@@ -171,8 +176,20 @@ class BFEEGromacs:
         self.logger.info('Initializing BFEEGromacs...')
         self.structureFile = structureFile
         self.topologyFile = topologyFile
+        self.baseDirectory = baseDirectory
+        self.ligandOnlyStructureFile = ligandOnlyStructureFile
+        self.ligandOnlyTopologyFile = ligandOnlyTopologyFile
+        if self.baseDirectory is not None:
+            self.logger.info(f'You have specified a new base directory at {self.baseDirectory}')
+            if not os.path.exists(self.baseDirectory):
+                os.makedirs(self.baseDirectory)
+                self.structureFile = shutil.copy(self.structureFile, self.baseDirectory)
+                self.topologyFile = shutil.copy(self.topologyFile, self.baseDirectory)
+                self.ligandOnlyStructureFile = shutil.copy(self.ligandOnlyStructureFile, self.baseDirectory)
+                self.ligandOnlyTopologyFile = shutil.copy(self.ligandOnlyTopologyFile, self.baseDirectory)
         self.logger.info(f'Calling MDAnalysis to load structure {self.structureFile}.')
         self.system = Universe(self.structureFile)
+        self.ligandOnlySystem = Universe(self.ligandOnlyStructureFile)
         dim = self.system.dimensions
         volume = dim[0] * dim[1] * dim[2]
         self.logger.info(f'The volume of the simulation box is {volume} Å^3.')
@@ -185,9 +202,6 @@ class BFEEGromacs:
             newBasename = os.path.splitext(self.structureFile)[0]
             self.structureFile = newBasename + '.new.gro'
             self.saveStructure(self.structureFile)
-        self.ligandOnlyStructureFile = ligandOnlyStructureFile
-        self.ligandOnlyTopologyFile = ligandOnlyTopologyFile
-        self.ligandOnlySystem = Universe(self.ligandOnlyStructureFile)
         dim = self.ligandOnlySystem.dimensions
         volume = dim[0] * dim[1] * dim[2]
         self.logger.info(f'The volume of the simulation box (ligand-only system) is {volume} Å^3.')
@@ -208,6 +222,8 @@ class BFEEGromacs:
                           '006_polar_phi',
                           '007_r',
                           '008_RMSD_unbound']
+        if self.baseDirectory is not None:
+            self.basenames = [os.path.join(self.baseDirectory, basename) for basename in self.basenames]
         self.logger.info('Initialization done.')
 
     def saveStructure(self, outputFile, selection='all'):
@@ -734,7 +750,7 @@ class BFEEGromacs:
 
     def generate008(self):
         self.handler.setFormatter(logging.Formatter('%(asctime)s [BFEEGromacs][008][%(levelname)s]:%(message)s'))
-        generate_basename = self.basenames[6]
+        generate_basename = self.basenames[7]
         self.logger.info('=' * 80)
         self.logger.info(f'Generating simulation files for {generate_basename}...')
         if not os.path.exists(generate_basename):
@@ -750,7 +766,17 @@ class BFEEGromacs:
                     pressure=1.01325)
         # generate the index file
         if hasattr(self, 'ligandOnly'):
-            self.ligandOnly.write('colvars_ligand_only.ndx', name='BFEE_Ligand_Only')
+            self.ligandOnly.write(os.path.join(generate_basename, 'colvars_ligand_only.ndx'), name='BFEE_Ligand_Only')
+        # generate the colvars configuration
+        colvars_inputfile_basename = os.path.join(generate_basename, '008_colvars')
+        generateColvars('008.colvars.template',
+                        colvars_inputfile_basename,
+                        rmsd_bin_width=0.005,
+                        rmsd_lower_boundary=0.0,
+                        rmsd_upper_boundary=0.5,
+                        rmsd_wall_constant=0.8368,
+                        ligand_selection='BFEE_Ligand_Only',
+                        logger=self.logger)
         # generate the reference file for ligand only
         # extract the positions from the host-guest binding system
         ligand_position_in_system = self.ligand.positions
@@ -772,7 +798,7 @@ class BFEEGromacs:
         self.logger.info('=' * 80)
 
 if __name__ == "__main__":
-    bfee = BFEEGromacs('p41-abl.pdb', 'p41-abl.top', 'ligand-only.pdb', 'ligand-only.top')
+    bfee = BFEEGromacs('p41-abl.pdb', 'p41-abl.top', 'ligand-only.pdb', 'ligand-only.top', 'p41-abl-test')
     bfee.setProteinHeavyAtomsGroup('segid SH3D and not (name H*)')
     bfee.setLigandHeavyAtomsGroup('segid PPRO and not (name H*)')
     bfee.setSolventAtomsGroup('resname TIP3*')
