@@ -49,15 +49,6 @@ def get_cell(atom_positions):
                      cell_basis_vector3])
 
 
-#def merge_files(filename_list, output_filename):
-    #"""Join a list of index files into a single one"""
-    #with open(output_filename, "w") as foutput:
-        #for fn in filename_list:
-            #with open(fn, "r") as finput:
-                #for line in finput:
-                    #foutput.write(line)
-
-
 def generateMDP(MDPTemplateFile, outputPrefix, timeStep, numSteps, temperature, pressure, logger=None):
     """
     Parameters
@@ -152,28 +143,55 @@ class BFEEGromacs:
         logger object for debugging
     handler : logging.StreamHandler
         output stream of the debug output
+    baseDirectory : str
+        output directory of the generated files
     structureFile : str
         filename of the structure file (either in PDB or GRO format) of the
-        protein-ligand complex
+        protein-ligand binding complex
     topologyFile : str
-        filename of the GROMACS topology file
-    
+        filename of the GROMACS topology file of the protein-ligand binding
+        complex
+    ligandOnlyStructureFile : str
+        filename of the structure file (either in PDB or GRO format) of the
+        ligand-only system
+    system : MDAnalysis.core.universe
+        MDAnalysis universe of the protein-ligand binding system
+    ligandOnlySystem : MDAnalysis.core.universe
+        MDAnalysis universe of the ligand-only system
+    basenames : str
+        subdirectory names of all eight steps
+    ligand : MDAnalysis.core.groups.AtomGroup
+        selected HEAVY ATOMS of the ligand in the protein-ligand binding
+        complex. This attribute does not exist until the call of
+        setLigandHeavyAtomsGroup.
+    ligandOnly : MDAnalysis.core.groups.AtomGroup
+        selected HEAVY ATOMS of the ligand in the ligand-only system.
+        This attribute does not exist until the call of setLigandHeavyAtomsGroup.
+    protein : MDAnalysis.core.groups.AtomGroup
+        selected HEAVY ATOMS of the protein in the protein-ligand binding
+        complex. This attribute does not exist until the call of
+        setProteinHeavyAtomsGroup.
+    solvent : MDAnalysis.core.groups.AtomGroup
+        selected atoms of the solvents in the protein-ligand binding complex.
+        This attribute does not exist until the call of setSolventAtomsGroup.
     Methods
     -------
-    __init__(self, structureFile, topologyFile, indexFile=None)
+    __init__(structureFile, topologyFile, ligandOnlyStructureFile,
+             ligandOnlyTopologyFile, baseDirectory=None)
         constructor of the class
-    
     saveStructure(outputFile, atomSelection)
-        select a group of atoms and save it
-
+        a helper method for selecting a group of atoms and save it
+    
     """
     def __init__(self, structureFile, topologyFile, ligandOnlyStructureFile, ligandOnlyTopologyFile, baseDirectory=None):
+        # setup the logger
         self.logger = logging.getLogger()
         self.handler = logging.StreamHandler(sys.stdout)
         self.handler.setFormatter(logging.Formatter('%(asctime)s [BFEEGromacs][%(levelname)s]:%(message)s'))
         self.logger.addHandler(self.handler)
         self.logger.setLevel(logging.INFO)
         self.logger.info('Initializing BFEEGromacs...')
+        # setup class attributes
         self.structureFile = structureFile
         self.topologyFile = topologyFile
         self.baseDirectory = baseDirectory
@@ -187,13 +205,17 @@ class BFEEGromacs:
                 self.topologyFile = shutil.copy(self.topologyFile, self.baseDirectory)
                 self.ligandOnlyStructureFile = shutil.copy(self.ligandOnlyStructureFile, self.baseDirectory)
                 self.ligandOnlyTopologyFile = shutil.copy(self.ligandOnlyTopologyFile, self.baseDirectory)
+        # start to load data into MDAnalysis
         self.logger.info(f'Calling MDAnalysis to load structure {self.structureFile}.')
         self.system = Universe(self.structureFile)
         self.ligandOnlySystem = Universe(self.ligandOnlyStructureFile)
+        # measure the cell
         dim = self.system.dimensions
         volume = dim[0] * dim[1] * dim[2]
         self.logger.info(f'The volume of the simulation box is {volume} Å^3.')
         if isclose(volume, 0.0):
+            # some PDB files do not have cell info
+            # so we reset the cell by an estimation
             self.logger.warning(f'The volume is too small. Maybe the structure file is a PDB file without the unit cell.')
             all_atoms = self.system.select_atoms("all")
             self.system.trajectory[0].triclinic_dimensions = get_cell(all_atoms.positions)
@@ -202,6 +224,7 @@ class BFEEGromacs:
             newBasename = os.path.splitext(self.structureFile)[0]
             self.structureFile = newBasename + '.new.gro'
             self.saveStructure(self.structureFile)
+        # measure the cell of the ligand-only system
         dim = self.ligandOnlySystem.dimensions
         volume = dim[0] * dim[1] * dim[2]
         self.logger.info(f'The volume of the simulation box (ligand-only system) is {volume} Å^3.')
@@ -227,6 +250,14 @@ class BFEEGromacs:
         self.logger.info('Initialization done.')
 
     def saveStructure(self, outputFile, selection='all'):
+        """
+        Parameters
+        ----------
+        outputFile : str
+            filename of the output file
+        selection : str
+            MDAnalysis atom selection string
+        """
         self.logger.info(f'Saving a new structure file at {outputFile} with selection ({selection}).')
         selected_atoms = self.system.select_atoms(selection)
         selected_atoms.write(outputFile)
