@@ -772,7 +772,7 @@ class BFEEGromacs:
         self.logger.info('=' * 80)
 
 if __name__ == "__main__":
-    bfee = BFEEGromacs('p41-abl.pdb', 'p41-abl.top')
+    bfee = BFEEGromacs('p41-abl.pdb', 'p41-abl.top', 'ligand-only.pdb', 'ligand-only.top')
     bfee.setProteinHeavyAtomsGroup('segid SH3D and not (name H*)')
     bfee.setLigandHeavyAtomsGroup('segid PPRO and not (name H*)')
     bfee.setSolventAtomsGroup('resname TIP3*')
