@@ -162,7 +162,7 @@ class BFEEGromacs:
         select a group of atoms and save it
 
     """
-    def __init__(self, structureFile, topologyFile):
+    def __init__(self, structureFile, topologyFile, ligandOnlyStructureFile, ligandOnlyTopologyFile):
         self.logger = logging.getLogger()
         self.handler = logging.StreamHandler(sys.stdout)
         self.handler.setFormatter(logging.Formatter('%(asctime)s [BFEEGromacs][%(levelname)s]:%(message)s'))
@@ -185,6 +185,21 @@ class BFEEGromacs:
             newBasename = os.path.splitext(self.structureFile)[0]
             self.structureFile = newBasename + '.new.gro'
             self.saveStructure(self.structureFile)
+        self.ligandOnlyStructureFile = ligandOnlyStructureFile
+        self.ligandOnlyTopologyFile = ligandOnlyTopologyFile
+        self.ligandOnlySystem = Universe(self.ligandOnlyStructureFile)
+        dim = self.ligandOnlySystem.dimensions
+        volume = dim[0] * dim[1] * dim[2]
+        self.logger.info(f'The volume of the simulation box (ligand-only system) is {volume} Å^3.')
+        if isclose(volume, 0.0):
+            self.logger.warning(f'The volume is too small. Maybe the structure file is a PDB file without the unit cell.')
+            all_atoms = self.ligandOnlySystem.select_atoms("all")
+            self.ligandOnlySystem.trajectory[0].triclinic_dimensions = get_cell(all_atoms.positions)
+            dim = self.ligandOnlySystem.dimensions
+            self.logger.warning(f'The unit cell has been reset to {dim[0]:12.5f} {dim[1]:12.5f} {dim[2]:12.5f} .')
+            newBasename = os.path.splitext(self.ligandOnlyStructureFile)[0]
+            self.ligandOnlyStructureFile = newBasename + '.new.gro'
+            self.saveStructure(self.ligandOnlyStructureFile)
         self.basenames = ['001_RMSD_bound',
                           '002_euler_theta',
                           '003_euler_phi',
@@ -219,6 +234,7 @@ class BFEEGromacs:
         """
         self.logger.info(f'Setup the atoms group of the ligand by selection: {selection}')
         self.ligand = self.system.select_atoms(selection)
+        self.ligandOnly = self.ligandOnlySystem.select_atoms(selection)
 
     def setSolventAtomsGroup(self, selection):
         """
@@ -283,7 +299,6 @@ class BFEEGromacs:
         # generate the reference file
         self.system.select_atoms('all').write(os.path.join(generate_basename, 'reference.xyz'))
         # generate the shell script for making the tpr file
-        dirname = os.path.dirname(__file__)
         generateShellScript('001.generate_tpr_sh.template',
                             os.path.join(generate_basename, '001_generate_tpr'),
                             logger=self.logger,
@@ -340,7 +355,6 @@ class BFEEGromacs:
         # generate the reference file
         self.system.select_atoms('all').write(os.path.join(generate_basename, 'reference.xyz'))
         # generate the shell script for making the tpr file
-        dirname = os.path.dirname(__file__)
         generateShellScript('002.generate_tpr_sh.template',
                             os.path.join(generate_basename, '002_generate_tpr'),
                             logger=self.logger,
@@ -400,7 +414,6 @@ class BFEEGromacs:
         # generate the reference file
         self.system.select_atoms('all').write(os.path.join(generate_basename, 'reference.xyz'))
         # generate the shell script for making the tpr file
-        dirname = os.path.dirname(__file__)
         generateShellScript('003.generate_tpr_sh.template',
                             os.path.join(generate_basename, '003_generate_tpr'),
                             logger=self.logger,
@@ -461,7 +474,6 @@ class BFEEGromacs:
         # generate the reference file
         self.system.select_atoms('all').write(os.path.join(generate_basename, 'reference.xyz'))
         # generate the shell script for making the tpr file
-        dirname = os.path.dirname(__file__)
         generateShellScript('004.generate_tpr_sh.template',
                             os.path.join(generate_basename, '004_generate_tpr'),
                             logger=self.logger,
@@ -531,7 +543,6 @@ class BFEEGromacs:
         # generate the reference file
         self.system.select_atoms('all').write(os.path.join(generate_basename, 'reference.xyz'))
         # generate the shell script for making the tpr file
-        dirname = os.path.dirname(__file__)
         generateShellScript('005.generate_tpr_sh.template',
                             os.path.join(generate_basename, '005_generate_tpr'),
                             logger=self.logger,
@@ -602,7 +613,6 @@ class BFEEGromacs:
         # generate the reference file
         self.system.select_atoms('all').write(os.path.join(generate_basename, 'reference.xyz'))
         # generate the shell script for making the tpr file
-        dirname = os.path.dirname(__file__)
         generateShellScript('006.generate_tpr_sh.template',
                             os.path.join(generate_basename, '006_generate_tpr'),
                             logger=self.logger,
@@ -692,7 +702,6 @@ class BFEEGromacs:
         # write the solvent molecules
         self.solvent.write(os.path.join(generate_basename, 'solvent.gro'))
         # generate the shell script for making the tpr file
-        dirname = os.path.dirname(__file__)
         new_box_x = np.around(convert(self.system.dimensions[0], 'angstrom', 'nm'), 2) + r_upper_shift
         new_box_y = np.around(convert(self.system.dimensions[1], 'angstrom', 'nm'), 2) + r_upper_shift
         new_box_z = np.around(convert(self.system.dimensions[2], 'angstrom', 'nm'), 2) + r_upper_shift
@@ -723,7 +732,7 @@ class BFEEGromacs:
         self.logger.info(f"Generation of {generate_basename} done.")
         self.logger.info('=' * 80)
 
-    def generate008(self, ligandOnlyStructure, ligandOnlyTopology):
+    def generate008(self):
         self.handler.setFormatter(logging.Formatter('%(asctime)s [BFEEGromacs][008][%(levelname)s]:%(message)s'))
         generate_basename = self.basenames[6]
         self.logger.info('=' * 80)
@@ -731,7 +740,36 @@ class BFEEGromacs:
         if not os.path.exists(generate_basename):
             self.logger.info(f'Making directory {os.path.abspath(generate_basename)}...')
             os.makedirs(generate_basename)
-        # TODO
+        # generate the MDP file
+        generateMDP('008.mdp.template',
+                    os.path.join(generate_basename, '008_PMF'),
+                    logger=self.logger,
+                    timeStep=0.002,
+                    numSteps=4000000,
+                    temperature=300,
+                    pressure=1.01325)
+        # generate the index file
+        if hasattr(self, 'ligandOnly'):
+            self.ligandOnly.write('colvars_ligand_only.ndx', name='BFEE_Ligand_Only')
+        # generate the reference file for ligand only
+        # extract the positions from the host-guest binding system
+        ligand_position_in_system = self.ligand.positions
+        # modify positions in the ligand-only system
+        self.ligandOnly.positions = ligand_position_in_system
+        # write out the whole ligand-only system as reference
+        self.ligandOnlySystem.select_atoms('all').write(os.path.join(generate_basename, 'reference_ligand_only.xyz'))
+        # generate the shell script for making the tpr file
+        generateShellScript('008.generate_tpr_sh.template',
+                            os.path.join(generate_basename, '008_generate_tpr'),
+                            logger=self.logger,
+                            MDP_FILE_TEMPLATE=os.path.relpath(os.path.abspath(os.path.join(generate_basename, '008_PMF.mdp')), os.path.abspath(generate_basename)),
+                            GRO_FILE_TEMPLATE=os.path.relpath(os.path.abspath(self.ligandOnlyStructureFile), os.path.abspath(generate_basename)),
+                            TOP_FILE_TEMPLATE=os.path.relpath(os.path.abspath(self.ligandOnlyTopologyFile), os.path.abspath(generate_basename)),
+                            COLVARS_INPUT_TEMPLATE=os.path.relpath(os.path.abspath(colvars_inputfile_basename + '.dat'), os.path.abspath(generate_basename)))
+        if not os.path.exists(os.path.join(generate_basename, 'output')):
+            os.makedirs(os.path.join(generate_basename, 'output'))
+        self.logger.info(f"Generation of {generate_basename} done.")
+        self.logger.info('=' * 80)
 
 if __name__ == "__main__":
     bfee = BFEEGromacs('p41-abl.pdb', 'p41-abl.top')
