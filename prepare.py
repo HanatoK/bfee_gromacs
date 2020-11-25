@@ -12,7 +12,22 @@ from math import isclose
 
 def measure_minmax(atom_positions):
     """
-    Mimic the VMD command "measure minmax.
+    measure_minmax(atom_positions)
+
+    mimic the VMD command "measure minmax"
+
+    Parameters
+    ----------
+    atom_positions : numpy.array
+        a numpy array containing the XYZ coordinates of N atoms. The shape 
+        should be (N, 3).
+
+    Returns
+    -------
+    Numpy.array
+        a shape of (2, 3) array, where the first subarray has the minimum 
+        values in XYZ directions, and the second subarray has the maximum
+        values in XYZ directions.
     """
     xyz_array = np.transpose(atom_positions)
     min_x = np.min(xyz_array[0])
@@ -26,7 +41,20 @@ def measure_minmax(atom_positions):
 
 def measure_center(atom_positions):
     """
-    Mimic the VMD command "measure center."
+    measure_center(atom_positions)
+
+    mimic the VMD command "measure center"
+
+    Parameters
+    ----------
+    atom_positions : numpy.array
+        a numpy array containing the XYZ coordinates of N atoms. The shape 
+        should be (N, 3).
+
+    Returns
+    -------
+    Numpy.array
+        a shape of (3,) array contains the geometric center
     """
     xyz_array = np.transpose(atom_positions)
     center_x = np.average(xyz_array[0])
@@ -37,7 +65,20 @@ def measure_center(atom_positions):
 
 def get_cell(atom_positions):
     """
-    Mimic the VMD script "get_cell.tcl".
+    get_cell(atom_positions)
+
+    mimic the VMD script get_cell.tcl to calculate the cell units
+
+    Parameters
+    ----------
+    atom_positions : numpy.array
+        a numpy array containing the XYZ coordinates of N atoms. The shape 
+        should be (N, 3).
+
+    Returns
+    -------
+    Numpy.array
+        a shape of (3,3) array contains periodic cell information
     """
     minmax_array = measure_minmax(atom_positions)
     vec = minmax_array[1] - minmax_array[0]
@@ -51,19 +92,26 @@ def get_cell(atom_positions):
 
 def generateMDP(MDPTemplateFile, outputPrefix, timeStep, numSteps, temperature, pressure, logger=None):
     """
+    generateMDP(MDPTemplateFile, outputPrefix, timeStep, numSteps, temperature, pressure, logger=None)
+
+    generate a GROMACS mdp file from a template
+
     Parameters
     ----------
     MDPTemplateFile : str
         template MDP file with $dt and $nsteps
-
     outputPrefix : str
         prefix (no .mdp extension) of the output MDP file
-
     timeStep : float
         timestep for running the simulation
-
     numSteps : int
         number of steps for running the simulation
+    temperature : float
+        simulation temperature
+    pressure : float
+        simulation pressure
+    logger : Logging.logger
+        logger for debugging
     """
     if logger is None:
         print(f'generateMDP: Generating {outputPrefix + ".mdp"} from template {MDPTemplateFile}...')
@@ -87,6 +135,20 @@ def generateMDP(MDPTemplateFile, outputPrefix, timeStep, numSteps, temperature, 
         foutput.write(MDP_content)
 
 def generateColvars(colvarsTemplate, outputPrefix, logger=None, **kwargs):
+    """
+    generateColvars(colvarsTemplate, outputPrefix, logger=None, **kwargs)
+
+    generate a Colvars configuration file from a template suffixed with '.dat'
+
+    Parameters
+    ----------
+    outputPrefix : str
+        prefix (no .dat extension) of the output Colvars configuration file
+    logger : Logging.logger
+        logger for debugging
+    **kwargs
+        additional arguments passed to safe_substitute()
+    """
     if logger is None:
         print(f'generateColvars: Generating {outputPrefix + ".dat"} from template {colvarsTemplate}...')
         print('Colvars parameters:')
@@ -105,6 +167,20 @@ def generateColvars(colvarsTemplate, outputPrefix, logger=None, **kwargs):
         foutput.write(content)
 
 def generateShellScript(shellTemplate, outputPrefix, logger=None, **kwargs):
+    """
+    generateShellScript(shellTemplate, outputPrefix, logger=None, **kwargs)
+
+    generate a shell script from a template
+
+    Parameters
+    ----------
+    outputPrefix : str
+        prefix (no .sh extension) of the output Colvars configuration file
+    logger : Logging.logger
+        logger for debugging
+    **kwargs
+        additional arguments passed to safe_substitute()
+    """
     if logger is None:
         print(f'generateShellScript: Generating {outputPrefix + ".sh"} from template {shellTemplate}...')
     else:
@@ -118,14 +194,21 @@ def generateShellScript(shellTemplate, outputPrefix, logger=None, **kwargs):
 
 def mearsurePolarAngles(proteinCenter, ligandCenter):
     """
+    mearsurePolarAngles(proteinCenter, ligandCenter)
+
+    measure the polar angles between the protein and the ligand
+    
     Parameters
     ----------
     proteinCenter : numpy.array
         center-of-mass of the protein
-
     ligandCenter : numpy.array
         center-of-mass of the ligand
 
+    Returns
+    -------
+    tuple
+        a (theta, phi) tuple where theta and phi are measured in degrees
     """
     vector = ligandCenter - proteinCenter
     vector /= np.linalg.norm(vector)
@@ -174,6 +257,7 @@ class BFEEGromacs:
     solvent : MDAnalysis.core.groups.AtomGroup
         selected atoms of the solvents in the protein-ligand binding complex.
         This attribute does not exist until the call of setSolventAtomsGroup.
+
     Methods
     -------
     __init__(structureFile, topologyFile, ligandOnlyStructureFile,
@@ -181,7 +265,39 @@ class BFEEGromacs:
         constructor of the class
     saveStructure(outputFile, atomSelection)
         a helper method for selecting a group of atoms and save it
-    
+    setProteinHeavyAtomsGroup(selection)
+        select the heavy atoms of the protein
+    setLigandHeavyAtomsGroup(selection)
+        select the heavy atoms of the ligand in both the protein-ligand complex
+        and the ligand-only systems
+    setSolventAtomsGroup(selection)
+        select the solvent atoms
+    generateGromacsIndex(outputFile)
+        generate a GROMACS index file for atom selection in Colvars
+    generate001()
+        generate files for determining the PMF along the RMSD of the ligand  
+        with respect to its bound state
+    generate002()
+        generate files for determining the PMF along the pitch (theta) angle of
+        the ligand
+    generate003()
+        generate files for determining the PMF along the roll (phi) angle of
+        the ligand
+    generate004()
+        generate files for determining the PMF along the yaw (psi) angle of
+        the ligand
+    generate005()
+        generate files for determining the PMF along the polar theta angle of
+        the ligand relative to the protein
+    generate006()
+        generate files for determining the PMF along the polar phi angle of
+        the ligand relative to the protein
+    generate007()
+        generate files for determining the PMF along the distance between the
+        the ligand and the protein
+    generate008()
+        generate files for determining the PMF along the RMSD of the ligand  
+        with respect to its unbound state
     """
     def __init__(self, structureFile, topologyFile, ligandOnlyStructureFile, ligandOnlyTopologyFile, baseDirectory=None):
         # setup the logger
@@ -405,7 +521,6 @@ class BFEEGromacs:
         generateShellScript('002.generate_tpr_sh.template',
                             os.path.join(generate_basename, '002_generate_tpr'),
                             logger=self.logger,
-                            BASENAME_001=self.basenames[0],
                             MDP_FILE_TEMPLATE=os.path.relpath(os.path.abspath(os.path.join(generate_basename, '002_PMF.mdp')), os.path.abspath(generate_basename)),
                             GRO_FILE_TEMPLATE=os.path.relpath(os.path.abspath(self.structureFile), os.path.abspath(generate_basename)),
                             TOP_FILE_TEMPLATE=os.path.relpath(os.path.abspath(self.topologyFile), os.path.abspath(generate_basename)),
@@ -464,7 +579,6 @@ class BFEEGromacs:
         generateShellScript('003.generate_tpr_sh.template',
                             os.path.join(generate_basename, '003_generate_tpr'),
                             logger=self.logger,
-                            BASENAME_001=self.basenames[0],
                             BASENAME_002=self.basenames[1],
                             MDP_FILE_TEMPLATE=os.path.relpath(os.path.abspath(os.path.join(generate_basename, '003_PMF.mdp')), os.path.abspath(generate_basename)),
                             GRO_FILE_TEMPLATE=os.path.relpath(os.path.abspath(self.structureFile), os.path.abspath(generate_basename)),
@@ -524,7 +638,6 @@ class BFEEGromacs:
         generateShellScript('004.generate_tpr_sh.template',
                             os.path.join(generate_basename, '004_generate_tpr'),
                             logger=self.logger,
-                            BASENAME_001=self.basenames[0],
                             BASENAME_002=self.basenames[1],
                             BASENAME_003=self.basenames[2],
                             MDP_FILE_TEMPLATE=os.path.relpath(os.path.abspath(os.path.join(generate_basename, '004_PMF.mdp')), os.path.abspath(generate_basename)),
@@ -593,7 +706,6 @@ class BFEEGromacs:
         generateShellScript('005.generate_tpr_sh.template',
                             os.path.join(generate_basename, '005_generate_tpr'),
                             logger=self.logger,
-                            BASENAME_001=self.basenames[0],
                             BASENAME_002=self.basenames[1],
                             BASENAME_003=self.basenames[2],
                             BASENAME_004=self.basenames[3],
@@ -663,7 +775,6 @@ class BFEEGromacs:
         generateShellScript('006.generate_tpr_sh.template',
                             os.path.join(generate_basename, '006_generate_tpr'),
                             logger=self.logger,
-                            BASENAME_001=self.basenames[0],
                             BASENAME_002=self.basenames[1],
                             BASENAME_003=self.basenames[2],
                             BASENAME_004=self.basenames[3],
@@ -755,7 +866,6 @@ class BFEEGromacs:
         generateShellScript('007.generate_tpr_sh.template',
                             os.path.join(generate_basename, '007_generate_tpr'),
                             logger=self.logger,
-                            BASENAME_001=self.basenames[0],
                             BASENAME_002=self.basenames[1],
                             BASENAME_003=self.basenames[2],
                             BASENAME_004=self.basenames[3],

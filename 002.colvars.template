@@ -62,7 +62,7 @@ metadynamics {
 harmonic {
     colvars         RMSD
     forceConstant   41.84
-    centers         001_pmf_argmin
+    centers         0
 }
 
 colvar {
