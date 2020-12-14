@@ -318,10 +318,10 @@ class BFEEGromacs:
             self.logger.info(f'You have specified a new base directory at {self.baseDirectory}')
             if not posixpath.exists(self.baseDirectory):
                 os.makedirs(self.baseDirectory)
-                self.structureFile = shutil.copy(self.structureFile, self.baseDirectory)
-                self.topologyFile = shutil.copy(self.topologyFile, self.baseDirectory)
-                self.ligandOnlyStructureFile = shutil.copy(self.ligandOnlyStructureFile, self.baseDirectory)
-                self.ligandOnlyTopologyFile = shutil.copy(self.ligandOnlyTopologyFile, self.baseDirectory)
+            self.structureFile = shutil.copy(self.structureFile, self.baseDirectory)
+            self.topologyFile = shutil.copy(self.topologyFile, self.baseDirectory)
+            self.ligandOnlyStructureFile = shutil.copy(self.ligandOnlyStructureFile, self.baseDirectory)
+            self.ligandOnlyTopologyFile = shutil.copy(self.ligandOnlyTopologyFile, self.baseDirectory)
         # start to load data into MDAnalysis
         self.logger.info(f'Calling MDAnalysis to load structure {self.structureFile}.')
         self.system = Universe(self.structureFile)
