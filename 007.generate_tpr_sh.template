@@ -1,9 +1,9 @@
 #!/bin/sh
 
 # define the binary of gromacs
-if which gmx_mpi &> /dev/null; then
+if which gmx_mpi >/dev/null 2>&1; then
     GMX_BIN=$(which gmx_mpi)
-else which gmx &> /dev/null;
+else which gmx >/dev/null 2>&1;
     GMX_BIN=$(which gmx)
 fi
 echo "Will use the gromacs executable binary at $GMX_BIN"
