@@ -126,13 +126,13 @@ def generateMDP(MDPTemplateFile, outputPrefix, timeStep, numSteps, temperature, 
         logger.info(f'Number of simulation steps (nsteps): {numSteps}')
         logger.info(f'Temperature: {temperature}')
         logger.info(f'Pressure: {pressure}')
-    with open(MDPTemplateFile, 'r') as finput:
+    with open(MDPTemplateFile, 'r', newline='\n') as finput:
         MDP_content = string.Template(finput.read())
     MDP_content = MDP_content.safe_substitute(dt=timeStep,
                                               nsteps=numSteps,
                                               temperature=temperature,
                                               pressure=pressure)
-    with open(outputPrefix + '.mdp', 'w') as foutput:
+    with open(outputPrefix + '.mdp', 'w', newline='\n') as foutput:
         foutput.write(MDP_content)
 
 def generateColvars(colvarsTemplate, outputPrefix, logger=None, **kwargs):
@@ -161,10 +161,10 @@ def generateColvars(colvarsTemplate, outputPrefix, logger=None, **kwargs):
             print(f'{key} = {val}')
         else:
             logger.info(f'{key} = {val}')
-    with open(colvarsTemplate, 'r') as finput:
+    with open(colvarsTemplate, 'r', newline='\n') as finput:
         content = string.Template(finput.read())
     content = content.safe_substitute(**kwargs)
-    with open(outputPrefix + '.dat', 'w') as foutput:
+    with open(outputPrefix + '.dat', 'w', newline='\n') as foutput:
         foutput.write(content)
 
 def generateShellScript(shellTemplate, outputPrefix, logger=None, **kwargs):
@@ -186,10 +186,10 @@ def generateShellScript(shellTemplate, outputPrefix, logger=None, **kwargs):
         print(f'generateShellScript: Generating {outputPrefix + ".sh"} from template {shellTemplate}...')
     else:
         logger.info(f'generateShellScript: Generating {outputPrefix + ".sh"} from template {shellTemplate}...')
-    with open(shellTemplate, 'r') as finput:
+    with open(shellTemplate, 'r', newline='\n') as finput:
         content = string.Template(finput.read())
     content = content.safe_substitute(**kwargs)
-    with open(outputPrefix + '.sh', 'w') as foutput:
+    with open(outputPrefix + '.sh', 'w', newline='\n') as foutput:
         foutput.write(content)
 
 
@@ -466,10 +466,15 @@ class BFEEGromacs:
         generateShellScript('001.generate_tpr_sh.template',
                             posixpath.join(generate_basename, '001_generate_tpr'),
                             logger=self.logger,
-                            MDP_FILE_TEMPLATE=posixpath.relpath(posixpath.abspath(posixpath.join(generate_basename, '001_PMF.mdp')), posixpath.abspath(generate_basename)),
-                            GRO_FILE_TEMPLATE=posixpath.relpath(posixpath.abspath(self.structureFile), posixpath.abspath(generate_basename)),
-                            TOP_FILE_TEMPLATE=posixpath.relpath(posixpath.abspath(self.topologyFile), posixpath.abspath(generate_basename)),
-                            COLVARS_INPUT_TEMPLATE=posixpath.relpath(posixpath.abspath(colvars_inputfile_basename + '.dat'), posixpath.abspath(generate_basename)))
+                            MDP_FILE_TEMPLATE=posixpath.relpath(posixpath.abspath(posixpath.join(generate_basename,
+                                                                                                 '001_PMF.mdp')),
+                                                                posixpath.abspath(generate_basename)).replace('\\', '/'),
+                            GRO_FILE_TEMPLATE=posixpath.relpath(posixpath.abspath(self.structureFile),
+                                                                posixpath.abspath(generate_basename)).replace('\\', '/'),
+                            TOP_FILE_TEMPLATE=posixpath.relpath(posixpath.abspath(self.topologyFile),
+                                                                posixpath.abspath(generate_basename)).replace('\\', '/'),
+                            COLVARS_INPUT_TEMPLATE=posixpath.relpath(posixpath.abspath(colvars_inputfile_basename + '.dat'),
+                                                                     posixpath.abspath(generate_basename)).replace('\\', '/'))
         if not posixpath.exists(posixpath.join(generate_basename, 'output')):
             os.makedirs(posixpath.join(generate_basename, 'output'))
         self.logger.info(f"Generation of {generate_basename} done.")
@@ -522,10 +527,15 @@ class BFEEGromacs:
         generateShellScript('002.generate_tpr_sh.template',
                             posixpath.join(generate_basename, '002_generate_tpr'),
                             logger=self.logger,
-                            MDP_FILE_TEMPLATE=posixpath.relpath(posixpath.abspath(posixpath.join(generate_basename, '002_PMF.mdp')), posixpath.abspath(generate_basename)),
-                            GRO_FILE_TEMPLATE=posixpath.relpath(posixpath.abspath(self.structureFile), posixpath.abspath(generate_basename)),
-                            TOP_FILE_TEMPLATE=posixpath.relpath(posixpath.abspath(self.topologyFile), posixpath.abspath(generate_basename)),
-                            COLVARS_INPUT_TEMPLATE=posixpath.relpath(posixpath.abspath(colvars_inputfile_basename + '.dat'), posixpath.abspath(generate_basename)))
+                            MDP_FILE_TEMPLATE=posixpath.relpath(posixpath.abspath(posixpath.join(generate_basename,
+                                                                                                 '002_PMF.mdp')),
+                                                                posixpath.abspath(generate_basename)).replace('\\', '/'),
+                            GRO_FILE_TEMPLATE=posixpath.relpath(posixpath.abspath(self.structureFile),
+                                                                posixpath.abspath(generate_basename)).replace('\\', '/'),
+                            TOP_FILE_TEMPLATE=posixpath.relpath(posixpath.abspath(self.topologyFile),
+                                                                posixpath.abspath(generate_basename)).replace('\\', '/'),
+                            COLVARS_INPUT_TEMPLATE=posixpath.relpath(posixpath.abspath(colvars_inputfile_basename + '.dat'),
+                                                                     posixpath.abspath(generate_basename)).replace('\\', '/'))
         # also copy the awk script to modify the colvars configuration according to the PMF minima in previous stages
         shutil.copyfile('find_min_max.awk', posixpath.join(generate_basename, 'find_min_max.awk'))
         if not posixpath.exists(posixpath.join(generate_basename, 'output')):
@@ -581,10 +591,15 @@ class BFEEGromacs:
                             posixpath.join(generate_basename, '003_generate_tpr'),
                             logger=self.logger,
                             BASENAME_002=self.basenames[1],
-                            MDP_FILE_TEMPLATE=posixpath.relpath(posixpath.abspath(posixpath.join(generate_basename, '003_PMF.mdp')), posixpath.abspath(generate_basename)),
-                            GRO_FILE_TEMPLATE=posixpath.relpath(posixpath.abspath(self.structureFile), posixpath.abspath(generate_basename)),
-                            TOP_FILE_TEMPLATE=posixpath.relpath(posixpath.abspath(self.topologyFile), posixpath.abspath(generate_basename)),
-                            COLVARS_INPUT_TEMPLATE=posixpath.relpath(posixpath.abspath(colvars_inputfile_basename + '.dat'), posixpath.abspath(generate_basename)))
+                            MDP_FILE_TEMPLATE=posixpath.relpath(posixpath.abspath(posixpath.join(generate_basename,
+                                                                                                 '003_PMF.mdp')),
+                                                                posixpath.abspath(generate_basename)).replace('\\', '/'),
+                            GRO_FILE_TEMPLATE=posixpath.relpath(posixpath.abspath(self.structureFile),
+                                                                posixpath.abspath(generate_basename)).replace('\\', '/'),
+                            TOP_FILE_TEMPLATE=posixpath.relpath(posixpath.abspath(self.topologyFile),
+                                                                posixpath.abspath(generate_basename)).replace('\\', '/'),
+                            COLVARS_INPUT_TEMPLATE=posixpath.relpath(posixpath.abspath(colvars_inputfile_basename + '.dat'),
+                                                                     posixpath.abspath(generate_basename)).replace('\\', '/'))
         # also copy the awk script to modify the colvars configuration according to the PMF minima in previous stages
         shutil.copyfile('find_min_max.awk', posixpath.join(generate_basename, 'find_min_max.awk'))
         if not posixpath.exists(posixpath.join(generate_basename, 'output')):
@@ -641,10 +656,15 @@ class BFEEGromacs:
                             logger=self.logger,
                             BASENAME_002=self.basenames[1],
                             BASENAME_003=self.basenames[2],
-                            MDP_FILE_TEMPLATE=posixpath.relpath(posixpath.abspath(posixpath.join(generate_basename, '004_PMF.mdp')), posixpath.abspath(generate_basename)),
-                            GRO_FILE_TEMPLATE=posixpath.relpath(posixpath.abspath(self.structureFile), posixpath.abspath(generate_basename)),
-                            TOP_FILE_TEMPLATE=posixpath.relpath(posixpath.abspath(self.topologyFile), posixpath.abspath(generate_basename)),
-                            COLVARS_INPUT_TEMPLATE=posixpath.relpath(posixpath.abspath(colvars_inputfile_basename + '.dat'), posixpath.abspath(generate_basename)))
+                            MDP_FILE_TEMPLATE=posixpath.relpath(posixpath.abspath(posixpath.join(generate_basename,
+                                                                                                 '004_PMF.mdp')),
+                                                                posixpath.abspath(generate_basename)).replace('\\', '/'),
+                            GRO_FILE_TEMPLATE=posixpath.relpath(posixpath.abspath(self.structureFile),
+                                                                posixpath.abspath(generate_basename)).replace('\\', '/'),
+                            TOP_FILE_TEMPLATE=posixpath.relpath(posixpath.abspath(self.topologyFile),
+                                                                posixpath.abspath(generate_basename)).replace('\\', '/'),
+                            COLVARS_INPUT_TEMPLATE=posixpath.relpath(posixpath.abspath(colvars_inputfile_basename + '.dat'),
+                                                                     posixpath.abspath(generate_basename)).replace('\\', '/'))
         # also copy the awk script to modify the colvars configuration according to the PMF minima in previous stages
         shutil.copyfile('find_min_max.awk', posixpath.join(generate_basename, 'find_min_max.awk'))
         if not posixpath.exists(posixpath.join(generate_basename, 'output')):
@@ -710,10 +730,15 @@ class BFEEGromacs:
                             BASENAME_002=self.basenames[1],
                             BASENAME_003=self.basenames[2],
                             BASENAME_004=self.basenames[3],
-                            MDP_FILE_TEMPLATE=posixpath.relpath(posixpath.abspath(posixpath.join(generate_basename, '005_PMF.mdp')), posixpath.abspath(generate_basename)),
-                            GRO_FILE_TEMPLATE=posixpath.relpath(posixpath.abspath(self.structureFile), posixpath.abspath(generate_basename)),
-                            TOP_FILE_TEMPLATE=posixpath.relpath(posixpath.abspath(self.topologyFile), posixpath.abspath(generate_basename)),
-                            COLVARS_INPUT_TEMPLATE=posixpath.relpath(posixpath.abspath(colvars_inputfile_basename + '.dat'), posixpath.abspath(generate_basename)))
+                            MDP_FILE_TEMPLATE=posixpath.relpath(posixpath.abspath(posixpath.join(generate_basename,
+                                                                                                 '005_PMF.mdp')),
+                                                                posixpath.abspath(generate_basename)).replace('\\', '/'),
+                            GRO_FILE_TEMPLATE=posixpath.relpath(posixpath.abspath(self.structureFile),
+                                                                posixpath.abspath(generate_basename)).replace('\\', '/'),
+                            TOP_FILE_TEMPLATE=posixpath.relpath(posixpath.abspath(self.topologyFile),
+                                                                posixpath.abspath(generate_basename)).replace('\\', '/'),
+                            COLVARS_INPUT_TEMPLATE=posixpath.relpath(posixpath.abspath(colvars_inputfile_basename + '.dat'),
+                                                                     posixpath.abspath(generate_basename)).replace('\\', '/'))
         # also copy the awk script to modify the colvars configuration according to the PMF minima in previous stages
         shutil.copyfile('find_min_max.awk', posixpath.join(generate_basename, 'find_min_max.awk'))
         if not posixpath.exists(posixpath.join(generate_basename, 'output')):
@@ -780,10 +805,15 @@ class BFEEGromacs:
                             BASENAME_003=self.basenames[2],
                             BASENAME_004=self.basenames[3],
                             BASENAME_005=self.basenames[4],
-                            MDP_FILE_TEMPLATE=posixpath.relpath(posixpath.abspath(posixpath.join(generate_basename, '006_PMF.mdp')), posixpath.abspath(generate_basename)),
-                            GRO_FILE_TEMPLATE=posixpath.relpath(posixpath.abspath(self.structureFile), posixpath.abspath(generate_basename)),
-                            TOP_FILE_TEMPLATE=posixpath.relpath(posixpath.abspath(self.topologyFile), posixpath.abspath(generate_basename)),
-                            COLVARS_INPUT_TEMPLATE=posixpath.relpath(posixpath.abspath(colvars_inputfile_basename + '.dat'), posixpath.abspath(generate_basename)))
+                            MDP_FILE_TEMPLATE=posixpath.relpath(posixpath.abspath(posixpath.join(generate_basename,
+                                                                                                 '006_PMF.mdp')),
+                                                                posixpath.abspath(generate_basename)).replace('\\', '/'),
+                            GRO_FILE_TEMPLATE=posixpath.relpath(posixpath.abspath(self.structureFile),
+                                                                posixpath.abspath(generate_basename)).replace('\\', '/'),
+                            TOP_FILE_TEMPLATE=posixpath.relpath(posixpath.abspath(self.topologyFile),
+                                                                posixpath.abspath(generate_basename)).replace('\\', '/'),
+                            COLVARS_INPUT_TEMPLATE=posixpath.relpath(posixpath.abspath(colvars_inputfile_basename + '.dat'),
+                                                                     posixpath.abspath(generate_basename)).replace('\\', '/'))
         # also copy the awk script to modify the colvars configuration according to the PMF minima in previous stages
         shutil.copyfile('find_min_max.awk', posixpath.join(generate_basename, 'find_min_max.awk'))
         if not posixpath.exists(posixpath.join(generate_basename, 'output')):
@@ -872,17 +902,30 @@ class BFEEGromacs:
                             BASENAME_004=self.basenames[3],
                             BASENAME_005=self.basenames[4],
                             BASENAME_006=self.basenames[5],
-                            BOX_MODIFIED_GRO_TEMPLATE=posixpath.relpath(posixpath.abspath(posixpath.join(generate_basename, 'box_modified.gro')), posixpath.abspath(generate_basename)),
-                            MODIFIED_TOP_TEMPLATE=posixpath.relpath(posixpath.abspath(posixpath.join(generate_basename, 'solvated.top')), posixpath.abspath(generate_basename)),
-                            MODIFIED_GRO_TEMPLATE=posixpath.relpath(posixpath.abspath(posixpath.join(generate_basename, 'solvated.gro')), posixpath.abspath(generate_basename)),
+                            BOX_MODIFIED_GRO_TEMPLATE=posixpath.relpath(posixpath.abspath(posixpath.join(generate_basename,
+                                                                                                         'box_modified.gro')),
+                                                                        posixpath.abspath(generate_basename)).replace('\\', '/'),
+                            MODIFIED_TOP_TEMPLATE=posixpath.relpath(posixpath.abspath(posixpath.join(generate_basename,
+                                                                                                     'solvated.top')),
+                                                                    posixpath.abspath(generate_basename)).replace('\\', '/'),
+                            MODIFIED_GRO_TEMPLATE=posixpath.relpath(posixpath.abspath(posixpath.join(generate_basename,
+                                                                                                     'solvated.gro')),
+                                                                    posixpath.abspath(generate_basename)).replace('\\', '/'),
                             NEW_BOX_X_TEMPLATE=f'{new_box_x:.5f}',
                             NEW_BOX_Y_TEMPLATE=f'{new_box_y:.5f}',
                             NEW_BOX_Z_TEMPLATE=f'{new_box_z:.5f}',
-                            MIN_MDP_FILE_TEMPLATE=posixpath.relpath(posixpath.abspath(posixpath.join(generate_basename, '007_Minimize.mdp')), posixpath.abspath(generate_basename)),
-                            MDP_FILE_TEMPLATE=posixpath.relpath(posixpath.abspath(posixpath.join(generate_basename, '007_PMF.mdp')), posixpath.abspath(generate_basename)),
-                            GRO_FILE_TEMPLATE=posixpath.relpath(posixpath.abspath(self.structureFile), posixpath.abspath(generate_basename)),
-                            TOP_FILE_TEMPLATE=posixpath.relpath(posixpath.abspath(self.topologyFile), posixpath.abspath(generate_basename)),
-                            COLVARS_INPUT_TEMPLATE=posixpath.relpath(posixpath.abspath(colvars_inputfile_basename + '.dat'), posixpath.abspath(generate_basename)))
+                            MIN_MDP_FILE_TEMPLATE=posixpath.relpath(posixpath.abspath(posixpath.join(generate_basename,
+                                                                                                     '007_Minimize.mdp')),
+                                                                    posixpath.abspath(generate_basename)).replace('\\', '/'),
+                            MDP_FILE_TEMPLATE=posixpath.relpath(posixpath.abspath(posixpath.join(generate_basename,
+                                                                                                 '007_PMF.mdp')),
+                                                                posixpath.abspath(generate_basename)).replace('\\', '/'),
+                            GRO_FILE_TEMPLATE=posixpath.relpath(posixpath.abspath(self.structureFile),
+                                                                posixpath.abspath(generate_basename)).replace('\\', '/'),
+                            TOP_FILE_TEMPLATE=posixpath.relpath(posixpath.abspath(self.topologyFile),
+                                                                posixpath.abspath(generate_basename)).replace('\\', '/'),
+                            COLVARS_INPUT_TEMPLATE=posixpath.relpath(posixpath.abspath(colvars_inputfile_basename + '.dat'),
+                                                                     posixpath.abspath(generate_basename)).replace('\\', '/'))
         # also copy the awk script to modify the colvars configuration according to the PMF minima in previous stages
         shutil.copyfile('find_min_max.awk', posixpath.join(generate_basename, 'find_min_max.awk'))
         if not posixpath.exists(posixpath.join(generate_basename, 'output')):
@@ -930,10 +973,15 @@ class BFEEGromacs:
         generateShellScript('008.generate_tpr_sh.template',
                             posixpath.join(generate_basename, '008_generate_tpr'),
                             logger=self.logger,
-                            MDP_FILE_TEMPLATE=posixpath.relpath(posixpath.abspath(posixpath.join(generate_basename, '008_PMF.mdp')), posixpath.abspath(generate_basename)),
-                            GRO_FILE_TEMPLATE=posixpath.relpath(posixpath.abspath(self.ligandOnlyStructureFile), posixpath.abspath(generate_basename)),
-                            TOP_FILE_TEMPLATE=posixpath.relpath(posixpath.abspath(self.ligandOnlyTopologyFile), posixpath.abspath(generate_basename)),
-                            COLVARS_INPUT_TEMPLATE=posixpath.relpath(posixpath.abspath(colvars_inputfile_basename + '.dat'), posixpath.abspath(generate_basename)))
+                            MDP_FILE_TEMPLATE=posixpath.relpath(posixpath.abspath(posixpath.join(generate_basename,
+                                                                                                 '008_PMF.mdp')),
+                                                                posixpath.abspath(generate_basename)).replace('\\', '/'),
+                            GRO_FILE_TEMPLATE=posixpath.relpath(posixpath.abspath(self.ligandOnlyStructureFile),
+                                                                posixpath.abspath(generate_basename)).replace('\\', '/'),
+                            TOP_FILE_TEMPLATE=posixpath.relpath(posixpath.abspath(self.ligandOnlyTopologyFile),
+                                                                posixpath.abspath(generate_basename)).replace('\\', '/'),
+                            COLVARS_INPUT_TEMPLATE=posixpath.relpath(posixpath.abspath(colvars_inputfile_basename + '.dat'),
+                                                                     posixpath.abspath(generate_basename)).replace('\\', '/'))
         if not posixpath.exists(posixpath.join(generate_basename, 'output')):
             os.makedirs(posixpath.join(generate_basename, 'output'))
         self.logger.info(f"Generation of {generate_basename} done.")
