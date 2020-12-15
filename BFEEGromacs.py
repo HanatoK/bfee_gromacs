@@ -514,7 +514,7 @@ class BFEEGromacs:
         generateColvars('002.colvars.template',
                         colvars_inputfile_basename,
                         logger=self.logger,
-                        eulerTheta_width=0.005,
+                        eulerTheta_width=1.0,
                         eulerTheta_lower_boundary=-10.0,
                         eulerTheta_upper_boundary=10.0,
                         eulerTheta_wall_constant=0.8368,
@@ -577,7 +577,7 @@ class BFEEGromacs:
         generateColvars('003.colvars.template',
                         colvars_inputfile_basename,
                         logger=self.logger,
-                        eulerPhi_width=0.005,
+                        eulerPhi_width=1.0,
                         eulerPhi_lower_boundary=-10.0,
                         eulerPhi_upper_boundary=10.0,
                         eulerPhi_wall_constant=0.8368,
@@ -641,7 +641,7 @@ class BFEEGromacs:
         generateColvars('004.colvars.template',
                         colvars_inputfile_basename,
                         logger=self.logger,
-                        eulerPsi_width=0.005,
+                        eulerPsi_width=1.0,
                         eulerPsi_lower_boundary=-10.0,
                         eulerPsi_upper_boundary=10.0,
                         eulerPsi_wall_constant=0.8368,
@@ -708,7 +708,7 @@ class BFEEGromacs:
         polar_theta, polar_phi = mearsurePolarAngles(protein_center, ligand_center)
         polar_theta_center = np.around(polar_theta, 1)
         self.logger.info(f'Measured polar angles: theta = {polar_theta:12.5f} ; phi = {polar_phi:12.5f}')
-        polar_theta_width = 0.005
+        polar_theta_width = 1.0
         polar_theta_lower = polar_theta_center - polar_theta_width * np.ceil(10 / polar_theta_width)
         polar_theta_upper = polar_theta_center + polar_theta_width * np.ceil(10 / polar_theta_width)
         generateColvars('005.colvars.template',
@@ -782,7 +782,7 @@ class BFEEGromacs:
         polar_theta, polar_phi = mearsurePolarAngles(protein_center, ligand_center)
         polar_phi_center = np.around(polar_phi, 1)
         self.logger.info(f'Measured polar angles: theta = {polar_theta:12.5f} ; phi = {polar_phi:12.5f}')
-        polar_phi_width = 0.005
+        polar_phi_width = 1.0
         polar_phi_lower = polar_phi_center - polar_phi_width * np.ceil(10 / polar_phi_width)
         polar_phi_upper = polar_phi_center + polar_phi_width * np.ceil(10 / polar_phi_width)
         generateColvars('006.colvars.template',
