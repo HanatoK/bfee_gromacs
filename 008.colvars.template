@@ -4,12 +4,12 @@ indexFile               colvars_ligand_only.ndx
 
 colvar {
     name                    RMSD
-    width                   $rmsd_width
+    width                   $rmsd_bin_width
     lowerboundary           $rmsd_lower_boundary
     upperboundary           $rmsd_upper_boundary
     subtractAppliedForce    on
     extendedLagrangian      on
-    extendedFluctuation     $rmsd_width
+    extendedFluctuation     $rmsd_bin_width
     rmsd {
         atoms {
             indexGroup $ligand_selection
